@@ -75,4 +75,10 @@ class train_net(Network):
          .rpn_points_classify(name='cubic_cls')
          )
 
+        (self.feed('lidar3d_data','rpn_rois')
+         .cubic_cnn(name='cubic_cnn')
+
+         )
+
+
         pass

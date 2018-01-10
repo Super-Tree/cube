@@ -173,28 +173,29 @@ def pcd_vispy(scans=None, boxes=None):
     scatter.set_data(pos, edge_width=0, face_color=(1, 1, 1, 1), size=0.01, scaling=True)
     vb.add(scatter)
 
-    gt_indice = np.where(boxes[:,-1] ==2 )[0]
-    gt_cnt=len(gt_indice)
-    i=0
-    for box in boxes:
-        if box[-1] !=2:
-            vsp_box = visuals.Box(width=box[4], height=box[6], depth=box[5], color=(0, 0, 0, 0.), edge_color='green')
-        else:
-            i=i+1
-            vsp_box = visuals.Box(width=box[4], height=box[6], depth=box[5], color=(0, 0.8, 0.6, 0.1),edge_color='yellow')
+    if boxes is not None:
+        gt_indice = np.where(boxes[:,-1] ==2)[0]
+        gt_cnt=len(gt_indice)
+        i=0
+        for box in boxes:
+            if box[-1] !=2:
+                vsp_box = visuals.Box(width=box[4], height=box[6], depth=box[5], color=(0, 0, 0, 0.), edge_color='green')
+            else:
+                i=i+1
+                vsp_box = visuals.Box(width=box[4], height=box[6], depth=box[5], color=(0, 0.8, 0.6, 0.1),edge_color='yellow')
 
-            text=visuals.Text(text='gt: ({}/{})'.format(i,gt_cnt), color='white', face='OpenSans', font_size=12, pos=[box[1], box[2], box[3]],
-                           anchor_x='left', anchor_y='top', font_manager=None)
-            vb.add(text)
+                text=visuals.Text(text='gt: ({}/{})'.format(i,gt_cnt), color='white', face='OpenSans', font_size=12, pos=[box[1], box[2], box[3]],
+                               anchor_x='left', anchor_y='top', font_manager=None)
+                vb.add(text)
 
-        mesh_box = vsp_box.mesh.mesh_data
-        mesh_border_box = vsp_box.border.mesh_data
-        vertices = mesh_box.get_vertices()
-        center = np.array([box[1], box[2], box[3]], dtype=np.float32)
-        vtcs = np.add(vertices, center)
-        mesh_border_box.set_vertices(vtcs)
-        mesh_box.set_vertices(vtcs)
-        vb.add(vsp_box)
+            mesh_box = vsp_box.mesh.mesh_data
+            mesh_border_box = vsp_box.border.mesh_data
+            vertices = mesh_box.get_vertices()
+            center = np.array([box[1], box[2], box[3]], dtype=np.float32)
+            vtcs = np.add(vertices, center)
+            mesh_border_box.set_vertices(vtcs)
+            mesh_box.set_vertices(vtcs)
+            vb.add(vsp_box)
 
     # vpio.write_png('name.png',)
     # line1 = visuals.Line(pos=((1, 1, 1), (14, 14, 14)), connect='strip', width=15, color=(1, 1, 0, 1), method='gl',antialias=True)

@@ -514,13 +514,13 @@ def data_show(path, index=21):
 
 
 
-    # Lidae bird view
-    filename = os.path.join(path, 'lidar_bv', str(index).zfill(6) + '.npy')
-    bv = np.load(filename)
-    image_bv = scale_to_255(bv[:, :, 8], min=0, max=2)
-    # plt.subplot(312)
-    plt.imshow(image_bv)
-    plt.show()
+    # # Lidae bird view
+    # filename = os.path.join(path, 'lidar_bv', str(index).zfill(6) + '.npy')
+    # bv = np.load(filename)
+    # image_bv = scale_to_255(bv[:, :, 8], min=0, max=2)
+    # # plt.subplot(312)
+    # plt.imshow(image_bv)
+    # plt.show()
 
     # plt.subplot(313)
     # plt.imshow(image_pcl)

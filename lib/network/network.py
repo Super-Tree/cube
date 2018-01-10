@@ -7,7 +7,7 @@ from VFE import VFE
 from rpn_classify import rpn_serial_extract_tf
 from rpn.anchor_target_layer_tf import anchor_target_layer as anchor_target_layer_py
 from rpn.proposal_layer_tf import proposal_layer_3d as proposal_layer_py_3d
-
+from rpn.rpn_3dcnn import cubic_rpn_cnn
 
 def layer(op):
     def layer_decorated(self, *args, **kwargs):
@@ -362,3 +362,9 @@ class Network(object):
         feature_stack,ad,bc= classifier.get_vfe_feature(input)
         return feature_stack,ad,bc
 
+    @layer
+    def cubic_cnn(self, input, name):
+        lidar_points = input[0]
+        rpn_3d_boxes = input[1][1]
+        cls = tf.py_func(cubic_rpn_cnn, [lidar_points, rpn_3d_boxes], tf.float32)
+        return cls

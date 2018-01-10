@@ -21,6 +21,7 @@ __C.LOCAL_LOG_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'local_log'))
 __C.TEST_RESULT = osp.abspath(osp.join(__C.ROOT_DIR, 'test_result'))
 __C.EPS = 1e-15
 __C.ANCHOR = [3.9,3.9,1.56]  # car size
+__C.CUBIC_RES = [0.3,0.3,0.1]  # car size
 __C.RPN_POINTS_REMAIN = 600
 if spawn.find_executable("nvcc",path="/usr/local/cuda-8.0/bin/"):
     # Use GPU implementation of non-maximum suppression
