@@ -130,7 +130,7 @@ def proposal_layer_3d(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, gt_bv, cfg_k
     # # proposals_img = proposals_img[keep, :]
     # scores = scores[keep]
 
-    # # TODO: pass real image_info
+
     # keep = _filter_img_boxes(proposals_img, [375, 1242])
     # proposals_bv = proposals_bv[keep, :]
     # proposals_3d = proposals_3d[keep, :]

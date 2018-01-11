@@ -28,7 +28,7 @@ def parse_args():
                         default=None, type=str)
     parser.add_argument('--epoch_iters', dest='epoch_iters',
                         help='number of iterations to train',
-                        default=50000, type=int)
+                        default=18, type=int)
     parser.add_argument('--imdb_type', dest='imdb_type',
                         help='dataset to train on(sti/kitti)', choices=['kitti', 'sti'],
                         default='kitti', type=str)
@@ -37,10 +37,10 @@ def parse_args():
                         default="False", type=str)
     parser.add_argument('--fineTune', dest='fineTune',
                         help='whether finetune the existing network weight',
-                        default='False', type=str)
+                        default='True', type=str)
 
     parser.add_argument('--use_demo', dest='use_demo', default=False, type=bool)
-    parser.add_argument('--fine_tune', dest='fine_tune', default=False, type=bool)
+    parser.add_argument('--fine_tune', dest='fine_tune', default=True, type=bool)
 
     # if len(sys.argv) == 1:
     #   parser.print_help()

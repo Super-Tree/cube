@@ -341,7 +341,6 @@ class kitti_mv3d(datasets.imdb):
                         continue
                     # the KITTI server expects 0-based indices
                     for k in xrange(dets.shape[0]):
-                        # TODO
                         # alpha = dets3D[k, 0] - np.arctan2(dets3D[k, 4], dets3D[k, 6])
                         alpha = 0
                         f.write('{:s} -1 -1 {:.2f} {:.2f} {:.2f} {:.2f} {:.2f} -1 -1 -1 -1 -1 -1 -1 -1\n' \
@@ -377,7 +376,6 @@ class kitti_mv3d(datasets.imdb):
                         obj = np.hstack((dets[k], dets3D[k, 1:]))
                         # print obj.shape
                         np.save(filename, obj)
-                        # # TODO
                         # alpha = dets3D[k, 0] - np.arctan2(dets3D[k, 4], dets3D[k, 6])
                         # f.write('{:s} -1 -1 {:.2f} {:.2f} {:.2f} {:.2f} {:.2f} {:.2f} {:.2f} {:.2f} {:.2f} {:.2f} {:.2f} {:.2f} {:.3f}\n' \
                         #         .format(cls.lower(), alpha, \

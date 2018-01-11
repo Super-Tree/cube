@@ -174,6 +174,7 @@ def pcd_vispy(scans=None, boxes=None):
     vb.add(scatter)
 
     if boxes is not None:
+        boxes = boxes.reshape(-1,8)
         gt_indice = np.where(boxes[:,-1] ==2)[0]
         gt_cnt=len(gt_indice)
         i=0

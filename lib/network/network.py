@@ -240,7 +240,7 @@ class Network(object):
             return image_proposal
 
         elif target == 'fv':
-            # TODO
+
             return None
 
     @layer
@@ -266,7 +266,6 @@ class Network(object):
     def concat(self, inputs, axis, name):
         return tf.concat(values=inputs, axis=axis, name=name)
 
-    # TODO
     @layer
     def element_wise_mean(self, input):
         return None

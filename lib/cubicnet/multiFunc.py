@@ -427,13 +427,13 @@ def draw_lidar(lidar, is_grid=True, fig=None, draw_axis=True):
     # draw grid
     if is_grid:
         mlab.points3d(0, 0, 0, color=(1, 1, 1), mode='sphere', scale_factor=0.2)
-        for y in np.arange(-40, 40, 5):
+        for y in np.arange(-40, 40, 1):
             x1, y1, z1 = -40.0, float(y), -1.5
             x2, y2, z2 = 40.0, float(y), -1.5
             mlab.plot3d([x1, x2], [y1, y2], [z1, z2], color=(0.1, 0.1, 0.1), tube_radius=None, line_width=0.1,
                         figure=fig)
 
-        for x in np.arange(-40, 40, 5):
+        for x in np.arange(-40, 40, 1):
             x1, y1, z1 = float(x), -40.0, -1.5
             x2, y2, z2 = float(x), 40.0, -1.5
             mlab.plot3d([x1, x2], [y1, y2], [z1, z2], color=(0.1, 0.1, 0.1), tube_radius=None, line_width=0.1,
@@ -447,7 +447,7 @@ def draw_lidar(lidar, is_grid=True, fig=None, draw_axis=True):
             [0., 2., 0., 0.],
             [0., 0., 2., 0.],
         ], dtype=np.float64)
-        fov = np.array([  ##<todo> : now is 45 deg. use actual setting later ...
+        fov = np.array([
             [40., 40., 0., 0.],
             [40., -40., 0., 0.],
         ], dtype=np.float64)
@@ -553,7 +553,6 @@ def modify_result(txtpath, pklpath):
             oneline[13] = str(box[idx][5])  # z
             oneline[14] = str(box[idx][6])  # ry
             l1 = ''
-            # TODO: make it easier
             for word in oneline:
                 l1 += word + ' '
             l1 += '\n'
