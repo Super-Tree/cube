@@ -76,7 +76,7 @@ class train_net(Network):
          )
 
         (self.feed('lidar3d_data','rpn_rois')
-         .cubic_cnn(name='cubic_cnn')
+         .cubic_grid(name='cubic_grid')
 
          )
 

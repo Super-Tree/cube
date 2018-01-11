@@ -8,7 +8,7 @@ from dataset.dataset import dataset_train
 
 DEBUG = True
 
-def cubic_rpn_cnn(lidarPoints,rpnBoxes):
+def cubic_rpn_grid(lidarPoints,rpnBoxes):
 
     x_points = lidarPoints[:, 0]
     y_points = lidarPoints[:, 1]
@@ -63,5 +63,5 @@ if __name__ == '__main__':
         idx = input('Type a new index: ')
         blobs = dataset.get_minibatch(idx)
         boxes = np.hstack((np.zeros([blobs['gt_boxes_3d'].shape[0],1],dtype=np.float32),blobs['gt_boxes_3d']))
-        cubic_rpn_cnn(blobs['lidar3d_data'],boxes)
+        cubic_rpn_grid(blobs['lidar3d_data'],boxes)
 
