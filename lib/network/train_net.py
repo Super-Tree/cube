@@ -70,15 +70,15 @@ class train_net(Network):
         (self.feed('rpn_cls_prob_reshape', 'rpn_bbox_pred', 'im_info', 'gt_boxes_bv')
          .proposal_layer_3d(_feat_stride, 'TRAIN', name='rpn_rois'))
 
-        (self.feed('lidar3d_data','rpn_rois')
-         .cubic_grid(name='cubic_grid')
-         .cubic_cnn(name='cubic_cnn')
-         )
         # (self.feed('lidar3d_data', 'rpn_rois', 'im_info')
         #  .rpn_extraction(name='rpn_points')
         #  .rpn_points_classify(name='cubic_cls')
         #  )
 
+        (self.feed('lidar3d_data','rpn_rois')
+         .cubic_grid(name='cubic_grid')
+         .cubic_cnn(name='cubic_cnn')
+         )
 
 
 

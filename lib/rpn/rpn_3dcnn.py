@@ -67,15 +67,15 @@ class cubic(object):
                                              strides=[1, 1, 1], name='conv3d_1', padding="same", _reuse=tf.AUTO_REUSE,
                                              _scope=scope, trainable=training)
         with tf.variable_scope('Conv3D_2', reuse=tf.AUTO_REUSE) as scope:
-            self.conv3d_2 = tf.layers.Conv3D(filters=channel[0], kernel_size=[3, 3, 3], activation=tf.nn.relu,
+            self.conv3d_2 = tf.layers.Conv3D(filters=channel[1], kernel_size=[3, 3, 3], activation=tf.nn.relu,
                                              strides=[1, 1, 1], name='conv3d_2', padding="same", _reuse=tf.AUTO_REUSE,
                                              _scope=scope, trainable=training)
         with tf.variable_scope('Conv3D_3', reuse=tf.AUTO_REUSE) as scope:
-            self.conv3d_3 = tf.layers.Conv3D(filters=channel[0], kernel_size=[3, 3, 3], activation=tf.nn.relu,
+            self.conv3d_3 = tf.layers.Conv3D(filters=channel[2], kernel_size=[3, 3, 3], activation=tf.nn.relu,
                                              strides=[1, 1, 1], name='conv3d_3', padding="same", _reuse=tf.AUTO_REUSE,
                                              _scope=scope, trainable=training)
         with tf.variable_scope('Conv3D_4', reuse=tf.AUTO_REUSE) as scope:
-            self.conv3d_4 = tf.layers.Conv3D(filters=channel[0], kernel_size=[3, 3, 3], activation=tf.nn.relu,
+            self.conv3d_4 = tf.layers.Conv3D(filters=channel[3], kernel_size=[3, 3, 3], activation=tf.nn.relu,
                                              strides=[1, 1, 1], name='conv3d_4', padding="same", _reuse=tf.AUTO_REUSE,
                                              _scope=scope, trainable=training)
 
@@ -85,7 +85,7 @@ class cubic(object):
         out_conv3d_2 = self.conv3d_2.apply(out_conv3d_1)
         out_conv3d_3 = self.conv3d_3.apply(out_conv3d_2)
         out_conv3d_4 = self.conv3d_4.apply(out_conv3d_3)
-        res_stack = out_conv3d_4
+        res_stack = out_conv3d_2
 
         return tf.convert_to_tensor(res_stack, dtype=tf.float32)
 

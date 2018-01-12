@@ -130,7 +130,6 @@ def proposal_layer_3d(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, gt_bv, cfg_k
     # # proposals_img = proposals_img[keep, :]
     # scores = scores[keep]
 
-
     # keep = _filter_img_boxes(proposals_img, [375, 1242])
     # proposals_bv = proposals_bv[keep, :]
     # proposals_3d = proposals_3d[keep, :]
@@ -156,7 +155,7 @@ def proposal_layer_3d(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, gt_bv, cfg_k
         print "proposals_bv shape: ", proposals_bv.shape
         print "proposals_3d shape: ", proposals_3d.shape
 
-    keep = nms(np.hstack((proposals_bv, scores)), nms_thresh)
+    keep = nms(np.hstack((proposals_bv, scores)), nms_thresh,force_cpu=False)
     if DEBUG:
         print keep
         print 'keep.shape',len(keep)
@@ -187,9 +186,6 @@ def proposal_layer_3d(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, gt_bv, cfg_k
     if DEBUG:
         print 'NMS & bbox use time:', end2 - beg
 
-    blob_bv=np.arange(300,dtype=np.float32).reshape(50,6)
-    blob_bv=np.arange(400,dtype=np.float32).reshape(50,8)
-    recall=np.arange(3,dtype=np.float32)
     return blob_bv, blob_3d, recall
 
 
