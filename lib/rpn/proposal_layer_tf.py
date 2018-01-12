@@ -187,6 +187,9 @@ def proposal_layer_3d(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, gt_bv, cfg_k
     if DEBUG:
         print 'NMS & bbox use time:', end2 - beg
 
+    blob_bv=np.arange(300,dtype=np.float32).reshape(50,6)
+    blob_bv=np.arange(400,dtype=np.float32).reshape(50,8)
+    recall=np.arange(3,dtype=np.float32)
     return blob_bv, blob_3d, recall
 
 

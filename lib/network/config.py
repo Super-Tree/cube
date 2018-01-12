@@ -46,7 +46,7 @@ __C.TRAIN.ITER_DISPLAY = 10
 __C.TRAIN.TENSORBOARD = True
 # Enable timeline generation
 __C.TRAIN.DEBUG_TIMELINE = False
-__C.TRAIN.USE_VALID = True
+__C.TRAIN.USE_VALID = False
 __C.TRAIN.VISUAL_VALID = True
 
 # Total number of examples

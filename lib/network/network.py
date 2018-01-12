@@ -3,11 +3,11 @@ import tensorflow as tf
 
 from config import cfg
 from VFE import VFE
-# from VFE import vfe_classifier
+
 from rpn_classify import rpn_serial_extract_tf
 from rpn.anchor_target_layer_tf import anchor_target_layer as anchor_target_layer_py
 from rpn.proposal_layer_tf import proposal_layer_3d as proposal_layer_py_3d
-from rpn.rpn_3dcnn import cubic_rpn_grid
+from rpn.rpn_3dcnn import cubic_rpn_grid_pyfc,cubic
 
 def layer(op):
     def layer_decorated(self, *args, **kwargs):
@@ -333,18 +333,6 @@ class Network(object):
             return rpn_labels, rpn_bbox_targets, rpn_rois_bv, rpn_rois_3d
 
     @layer
-    def proposal_layer_3d(self, input, _feat_stride, cfg_key, name):
-        if isinstance(input[0], tuple):
-            input[0] = input[0][0]
-        with tf.variable_scope(name,reuse=tf.AUTO_REUSE) as scope:
-            rpn_rois_bv, rpn_rois_3d,rpn_recall = tf.py_func(proposal_layer_py_3d,
-                                                  [input[0], input[1], input[2], input[3], cfg_key, _feat_stride],
-                                                  [tf.float32, tf.float32, tf.float32])
-            rpn_rois_bv = tf.reshape(rpn_rois_bv, [-1, 6], name='rpn_rois_bv')
-            rpn_rois_3d = tf.reshape(rpn_rois_3d, [-1, 8], name='rpn_rois_3d')
-        return rpn_rois_bv, rpn_rois_3d, rpn_recall
-
-    @layer
     def rpn_extraction(self, input, name):
         # if isinstance(input[0], tuple):
         #     input[0] = input[0][0]
@@ -362,16 +350,30 @@ class Network(object):
         return feature_stack,ad,bc
 
     @layer
+    def proposal_layer_3d(self, input, _feat_stride, cfg_key, name):
+        if isinstance(input[0], tuple):
+            input[0] = input[0][0]
+        with tf.variable_scope(name,reuse=tf.AUTO_REUSE) as scope:
+            rpn_rois_bv, rpn_rois_3d,rpn_recall = tf.py_func(proposal_layer_py_3d,
+                                                  [input[0], input[1], input[2], input[3], cfg_key, _feat_stride],
+                                                  [tf.float32, tf.float32, tf.float32])
+            rpn_rois_bv = tf.reshape(rpn_rois_bv, [-1, 6], name='rpn_rois_bv')
+            rpn_rois_3d = tf.reshape(rpn_rois_3d, [-1, 8], name='rpn_rois_3d')
+        return rpn_rois_bv, rpn_rois_3d, rpn_recall
+
+    @layer
     def cubic_grid(self, input, name):
         lidar_points = input[0]
         rpn_3d_boxes = input[1][1]
-        cls = tf.py_func(cubic_rpn_grid, [lidar_points, rpn_3d_boxes], tf.float32)
-        return cls
+        with tf.variable_scope(name, reuse=tf.AUTO_REUSE) as scope:
+            stack_cubic = tf.py_func(cubic_rpn_grid_pyfc, [lidar_points, rpn_3d_boxes], tf.float32)
+        return stack_cubic
 
     @layer
-    def cubic_cnn(self, input, name):
-        lidar_points = input[0]
-        rpn_3d_boxes = input[1][1]
+    def cubic_cnn(self,input, name):
+        with tf.variable_scope(name, reuse=tf.AUTO_REUSE) as scope:
+            batch_size = tf.shape(input)  # 5 numbers
+            cubic3dcnn = cubic(batch_size, [7, 32, 32, 8], name='conv3d')
+            result = cubic3dcnn.apply(input)
+        return result
 
-
-        return cls
