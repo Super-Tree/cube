@@ -7,7 +7,7 @@ anchor_scales = [1.0, 1.0]
 anchor_num = 1
 _feat_stride = [8, 8]
 
-auto = True  # control the head network whether to be trained in cubic net
+auto = False  # control the head network whether to be trained in cubic net
 
 
 class train_net(Network):

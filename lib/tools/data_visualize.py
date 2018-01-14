@@ -158,7 +158,7 @@ def show_bbox(bv_image, bv_gt, anchors, bv_box_pred=None):
     return bv_image
 
 #  using vispy
-def pcd_vispy(scans=None, boxes=None,name=None,vis_size=(800,600)):
+def pcd_vispy(scans=None, boxes=None,name=None,vis_size=(800,600),now=True):
     pos = scans[:, :3]
 
     canvas = vispy.scene.SceneCanvas(title=name,keys='interactive',size=vis_size, show=True)
@@ -202,6 +202,9 @@ def pcd_vispy(scans=None, boxes=None,name=None,vis_size=(800,600)):
     # vpio.write_png('name.png',)
     # line1 = visuals.Line(pos=((1, 1, 1), (14, 14, 14)), connect='strip', width=15, color=(1, 1, 0, 1), method='gl',antialias=True)
     # vb.add(line1)
+    if now:
+        vispy.app.run()
+        vispy.app.quit()
 
     @canvas.connect
     def on_key_press(ev):
@@ -211,5 +214,5 @@ def pcd_vispy(scans=None, boxes=None,name=None,vis_size=(800,600)):
 
 def pcd_show_now():
     vispy.app.run()
-    # vispy.app.quit()
+    vispy.app.quit()
 
