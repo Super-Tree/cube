@@ -10,6 +10,7 @@ import vispy
 import vispy.plot as vp
 import vispy.io as vpio
 from vispy.scene import visuals
+
 vispy.set_log_level('CRITICAL',match='-.-')
 
 def lidar_3d_to_corners(pts_3D):
@@ -157,10 +158,10 @@ def show_bbox(bv_image, bv_gt, anchors, bv_box_pred=None):
     return bv_image
 
 #  using vispy
-def pcd_vispy(scans=None, boxes=None):
+def pcd_vispy(scans=None, boxes=None,name=None,vis_size=(800,600)):
     pos = scans[:, :3]
 
-    canvas = vispy.scene.SceneCanvas(title='Scan',keys='interactive', show=True)
+    canvas = vispy.scene.SceneCanvas(title=name,keys='interactive',size=vis_size, show=True)
     vb = canvas.central_widget.add_view()
     vb.camera = 'turntable'
     vb.camera.elevation = 19.0
@@ -186,7 +187,7 @@ def pcd_vispy(scans=None, boxes=None):
                 vsp_box = visuals.Box(width=box[4], height=box[6], depth=box[5], color=(0, 0.8, 0.6, 0.1),edge_color='yellow')
 
                 text=visuals.Text(text='gt: ({}/{})'.format(i,gt_cnt), color='white', face='OpenSans', font_size=12, pos=[box[1], box[2], box[3]],
-                               anchor_x='left', anchor_y='top', font_manager=None)
+                                  anchor_x='left', anchor_y='top', font_manager=None)
                 vb.add(text)
 
             mesh_box = vsp_box.mesh.mesh_data
@@ -208,5 +209,7 @@ def pcd_vispy(scans=None, boxes=None):
             a =vb.camera.get_state()
         print(a)
 
+def pcd_show_now():
     vispy.app.run()
-    vispy.app.quit()
+    # vispy.app.quit()
+

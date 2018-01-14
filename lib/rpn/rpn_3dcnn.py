@@ -1,12 +1,12 @@
 import os
 import numpy as np
 import tensorflow as tf
-from tools.data_visualize import pcd_vispy
+from tools.data_visualize import pcd_vispy,pcd_show_now
 from network.config import cfg
 from easydict import EasyDict as edict
 from dataset.dataset import dataset_train
 
-DEBUG = False
+DEBUG = True
 
 shape = lambda i: int(np.ceil(np.round(cfg.ANCHOR[i] / cfg.CUBIC_RES[i], 3)))  # Be careful about python number  decimal
 cubic_size = [shape(0), shape(1), shape(2), 4]
@@ -53,30 +53,32 @@ def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes):
             box_mv = [box[0], box[1] - box[1], box[2] - box[2], box[3] - box[3], cfg.ANCHOR[0], cfg.ANCHOR[1],
                       cfg.ANCHOR[2], box[7]]
             pcd_vispy(cubic_feature.reshape(-1, 4), np.array(box_mv))
+    if DEBUG:
+        pcd_vispy(lidarPoints)
+        pcd_show_now()
 
     stack_size = np.concatenate((np.array([-1]), cubic_size))
-
     return np.array(res, dtype=np.float32).reshape(stack_size)
 
 
 class cubic(object):
-    def __init__(self, batch_size, channel, name, training=True):
+    def __init__(self, batch_size, channel, name=None, training=True):
         self.batch_size = batch_size
-        with tf.variable_scope('Conv3D_1', reuse=tf.AUTO_REUSE) as scope:
+        with tf.variable_scope('conv3d_1', reuse=tf.AUTO_REUSE) as scope:
             self.conv3d_1 = tf.layers.Conv3D(filters=channel[0], kernel_size=[3, 3, 3], activation=tf.nn.relu,
-                                             strides=[1, 1, 1], name='conv3d_1', padding="same", _reuse=tf.AUTO_REUSE,
+                                             strides=[2, 2, 2], padding="same", _reuse=tf.AUTO_REUSE,
                                              _scope=scope, trainable=training)
-        with tf.variable_scope('Conv3D_2', reuse=tf.AUTO_REUSE) as scope:
+        with tf.variable_scope('conv3d_2', reuse=tf.AUTO_REUSE) as scope:
             self.conv3d_2 = tf.layers.Conv3D(filters=channel[1], kernel_size=[3, 3, 3], activation=tf.nn.relu,
-                                             strides=[1, 1, 1], name='conv3d_2', padding="same", _reuse=tf.AUTO_REUSE,
+                                             strides=[2, 2, 2], padding="same", _reuse=tf.AUTO_REUSE,
                                              _scope=scope, trainable=training)
-        with tf.variable_scope('Conv3D_3', reuse=tf.AUTO_REUSE) as scope:
+        with tf.variable_scope('conv3d_3', reuse=tf.AUTO_REUSE) as scope:
             self.conv3d_3 = tf.layers.Conv3D(filters=channel[2], kernel_size=[3, 3, 3], activation=tf.nn.relu,
-                                             strides=[1, 1, 1], name='conv3d_3', padding="same", _reuse=tf.AUTO_REUSE,
+                                             strides=[1, 1, 1], padding="same", _reuse=tf.AUTO_REUSE,
                                              _scope=scope, trainable=training)
-        with tf.variable_scope('Conv3D_4', reuse=tf.AUTO_REUSE) as scope:
+        with tf.variable_scope('conv3d_4', reuse=tf.AUTO_REUSE) as scope:
             self.conv3d_4 = tf.layers.Conv3D(filters=channel[3], kernel_size=[3, 3, 3], activation=tf.nn.relu,
-                                             strides=[1, 1, 1], name='conv3d_4', padding="same", _reuse=tf.AUTO_REUSE,
+                                             strides=[1, 1, 1], padding="same", _reuse=tf.AUTO_REUSE,
                                              _scope=scope, trainable=training)
 
     def apply(self, inputs):
@@ -85,7 +87,7 @@ class cubic(object):
         out_conv3d_2 = self.conv3d_2.apply(out_conv3d_1)
         out_conv3d_3 = self.conv3d_3.apply(out_conv3d_2)
         out_conv3d_4 = self.conv3d_4.apply(out_conv3d_3)
-        res_stack = out_conv3d_2
+        res_stack = out_conv3d_4
 
         return tf.convert_to_tensor(res_stack, dtype=tf.float32)
 
