@@ -155,7 +155,7 @@ def proposal_layer_3d(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, gt_bv, cfg_k
         print "proposals_bv shape: ", proposals_bv.shape
         print "proposals_3d shape: ", proposals_3d.shape
 
-    keep = nms(np.hstack((proposals_bv, scores)), nms_thresh,force_cpu=True)#TODO:cpu instead and re-edit later !!!
+    keep = nms(np.hstack((proposals_bv, scores)), nms_thresh,force_cpu=False)#TODO:cpu instead and re-edit later !!!
     if DEBUG:
         print keep
         print 'keep.shape',len(keep)

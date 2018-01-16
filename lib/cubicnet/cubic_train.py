@@ -175,7 +175,7 @@ class combinet_train(object):
 
         training_series = range(self.epoch)  # self.epoch
         for epo_cnt in range(self.args.epoch_iters):
-            for data_idx in range(20):  # DO NOT EDIT the "training_series",for the latter shuffle
+            for data_idx in training_series:  # DO NOT EDIT the "training_series",for the latter shuffle
                 iter = global_step.eval()  # function "minimize()"will increase global_step
                 blobs = self.dataset.get_minibatch(data_idx, 'train')  # get one batch
                 feed_dict = {
@@ -187,8 +187,8 @@ class combinet_train(object):
                     self.net.gt_boxes_3d: blobs['gt_boxes_3d'],
                     self.net.gt_boxes_corners: blobs['gt_boxes_corners'],
                     self.net.calib: blobs['calib']}
-                run_options = None
-                run_metadata = None
+                run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                run_metadata = tf.RunMetadata()
                 timer.tic()
                 cubic_cls_score_,cubic_cls_labels_,rpn_rois_,cubic_cnn_,cubic_grid_, loss_, merged_, _ = sess.run(
                     [cubic_cls_score,cubic_cls_labels,rpn_rois,cubic_cnn,cubic_grid,loss, merged, train_op],
@@ -199,12 +199,13 @@ class combinet_train(object):
                 recall_RPN = recall_RPN + rpn_rois_[2][0]
                 cubic_result = cubic_cls_score_.argmax(axis=1)
                 one_hist = fast_hist(cubic_cls_labels_, cubic_result)
-                cubic_car_cls_prec = one_hist[1, 1] / (one_hist[1, 1] + one_hist[0, 1])
-                cubic_car_cls_recall = one_hist[1, 1] / (one_hist[1, 1] + one_hist[1, 0])
+                cubic_car_cls_prec = one_hist[1, 1] / (one_hist[1, 1] + one_hist[0, 1]+1e-5)
+                cubic_car_cls_recall = one_hist[1, 1] / (one_hist[1, 1] + one_hist[1, 0]+1e-5)
 
-                if cfg.TRAIN.DEBUG_TIMELINE:
+                if iter % 51==0 and cfg.TRAIN.DEBUG_TIMELINE:
+                    #chrome://tracing
                     trace = timeline.Timeline(step_stats=run_metadata.step_stats)
-                    trace_file = open(str(long(time.time() * 1000)) + '-train-timeline.ctf.json', 'w')
+                    trace_file = open(cfg.LOG_DIR+'/'+str(long(time.time() * 1000)) + '-train-timeline.ctf.json', 'w')
                     trace_file.write(trace.generate_chrome_trace_format(show_memory=False))
                     trace_file.close()
                 if iter % cfg.TRAIN.ITER_DISPLAY == 0:
@@ -244,7 +245,7 @@ class combinet_train(object):
                     pred_tp_cnt, gt_cnt = 0., 0.
                     hist = np.zeros((cfg.NUM_CLASS, cfg.NUM_CLASS), dtype=np.float32)
 
-                    for data_idx in range(20):#range(self.val_epoch):  # self.val_epoch
+                    for data_idx in range(self.val_epoch):  # self.val_epoch
                         blobs = self.dataset.get_minibatch(data_idx, 'valid')
                         feed_dict_ = {
                             self.net.lidar3d_data: blobs['lidar3d_data'],
@@ -286,7 +287,6 @@ class combinet_train(object):
                 train_writer.add_summary(valid_res, epo_cnt + 1)
                 print 'Validation of epoch_{}: rpn_recall {:.3f} cubic_precision = {:.3f}  cubic_recall = {:.3f}'.format(epo_cnt + 1,recall_rpn,precise_total,recall_total)
         self.snapshot(sess, iter, final=True)
-
 
 def network_training(network, data_set, args):
     net = combinet_train(network, data_set, args)
