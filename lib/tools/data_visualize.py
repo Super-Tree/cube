@@ -1,4 +1,3 @@
-
 # import mayavi.mlab as mlab  # 3d point
 import numpy as np
 import tensorflow as tf
@@ -11,7 +10,8 @@ import vispy.plot as vp
 import vispy.io as vpio
 from vispy.scene import visuals
 
-vispy.set_log_level('CRITICAL',match='-.-')
+vispy.set_log_level('CRITICAL', match='-.-')
+
 
 def lidar_3d_to_corners(pts_3D):
     """
@@ -28,17 +28,18 @@ def lidar_3d_to_corners(pts_3D):
     h = h.reshape(-1, 1)
 
     # clockwise, zero at bottom left
-    x_corners = np.hstack((l/2., l/2., -l/2., -l/2., l/2., l/2., -l/2., -l/2.))
-    y_corners = np.hstack((w/2., -w/2., -w/2., w/2., w/2., -w/2., -w/2., w/2.))
-    z_corners = np.hstack((-h/2.,-h/2.,-h/2.,-h/2.,h/2.,h/2.,h/2.,h/2.))
+    x_corners = np.hstack((l / 2., l / 2., -l / 2., -l / 2., l / 2., l / 2., -l / 2., -l / 2.))
+    y_corners = np.hstack((w / 2., -w / 2., -w / 2., w / 2., w / 2., -w / 2., -w / 2., w / 2.))
+    z_corners = np.hstack((-h / 2., -h / 2., -h / 2., -h / 2., h / 2., h / 2., h / 2., h / 2.))
 
     corners = np.hstack((x_corners, y_corners, z_corners))
 
-    corners[:,0:8] = corners[:,0:8] + pts_3D[:,0].reshape((-1, 1)).repeat(8, axis=1)
-    corners[:,8:16] = corners[:,8:16] + pts_3D[:,1].reshape((-1, 1)).repeat(8, axis=1)
-    corners[:,16:24] = corners[:,16:24] + pts_3D[:,2].reshape((-1, 1)).repeat(8, axis=1)
+    corners[:, 0:8] = corners[:, 0:8] + pts_3D[:, 0].reshape((-1, 1)).repeat(8, axis=1)
+    corners[:, 8:16] = corners[:, 8:16] + pts_3D[:, 1].reshape((-1, 1)).repeat(8, axis=1)
+    corners[:, 16:24] = corners[:, 16:24] + pts_3D[:, 2].reshape((-1, 1)).repeat(8, axis=1)
 
     return corners
+
 
 #  using mayavi
 def draw_3dPoints_box(lidar=None, Boxex3D=None, is_grid=True, fig=None, draw_axis=True):
@@ -53,19 +54,19 @@ def draw_3dPoints_box(lidar=None, Boxex3D=None, is_grid=True, fig=None, draw_axi
 
     if lidar is not None:
         mlab.points3d(pxs, pys, pzs, prs,
-            mode='point',  # 'point'  'sphere'
-            colormap='gnuplot',  # 'bone',  #'spectral',  #'copper',
-            scale_factor=1,
-            figure=fig)
+                      mode='point',  # 'point'  'sphere'
+                      colormap='gnuplot',  # 'bone',  #'spectral',  #'copper',
+                      scale_factor=1,
+                      figure=fig)
 
     if Boxex3D is not None:
         for i in range(Boxex3D.shape[0]):
-            b = lidar_3d_to_corners(Boxex3D[i,1:7].reshape(-1,6)).reshape(3,8).transpose()
-            a = round(Boxex3D[i, 0],2)
+            b = lidar_3d_to_corners(Boxex3D[i, 1:7].reshape(-1, 6)).reshape(3, 8).transpose()
+            a = round(Boxex3D[i, 0], 2)
             if a == 1.0:
                 mycolor = (0., 1., 0.)
             else:
-                a = max(a-0.6, 0.025)*2.5+0.01
+                a = max(a - 0.6, 0.025) * 2.5 + 0.01
                 mycolor = (a, a, a)
 
             for k in range(0, 4):
@@ -88,12 +89,14 @@ def draw_3dPoints_box(lidar=None, Boxex3D=None, is_grid=True, fig=None, draw_axi
         for y in np.arange(-40, 40, 5):
             x1, y1, z1 = -40.0, float(y), -1.5
             x2, y2, z2 = 40.0, float(y), -1.5
-            mlab.plot3d([x1, x2], [y1, y2], [z1, z2], color=(0.1, 0.1, 0.1), tube_radius=None, line_width=0.1, figure=fig)
+            mlab.plot3d([x1, x2], [y1, y2], [z1, z2], color=(0.1, 0.1, 0.1), tube_radius=None, line_width=0.1,
+                        figure=fig)
 
         for x in np.arange(-40, 40, 5):
             x1, y1, z1 = float(x), -40.0, -1.5
             x2, y2, z2 = float(x), 40.0, -1.5
-            mlab.plot3d([x1, x2], [y1, y2], [z1, z2], color=(0.1, 0.1, 0.1), tube_radius=None, line_width=0.1, figure=fig)
+            mlab.plot3d([x1, x2], [y1, y2], [z1, z2], color=(0.1, 0.1, 0.1), tube_radius=None, line_width=0.1,
+                        figure=fig)
 
     # draw axis
     if draw_axis:
@@ -111,13 +114,16 @@ def draw_3dPoints_box(lidar=None, Boxex3D=None, is_grid=True, fig=None, draw_axi
         mlab.plot3d([0, axes[0, 0]], [0, axes[0, 1]], [0, axes[0, 2]], color=(1, 0, 0), tube_radius=None, figure=fig)
         mlab.plot3d([0, axes[1, 0]], [0, axes[1, 1]], [0, axes[1, 2]], color=(0, 1, 0), tube_radius=None, figure=fig)
         mlab.plot3d([0, axes[2, 0]], [0, axes[2, 1]], [0, axes[2, 2]], color=(0, 0, 1), tube_radius=None, figure=fig)
-        mlab.plot3d([0, fov[0, 0]], [0, fov[0, 1]], [0, fov[0, 2]], color=(1, 1, 1), tube_radius=None, line_width=1, figure=fig)
-        mlab.plot3d([0, fov[1, 0]], [0, fov[1, 1]], [0, fov[1, 2]], color=(1, 1, 1), tube_radius=None, line_width=1, figure=fig)
+        mlab.plot3d([0, fov[0, 0]], [0, fov[0, 1]], [0, fov[0, 2]], color=(1, 1, 1), tube_radius=None, line_width=1,
+                    figure=fig)
+        mlab.plot3d([0, fov[1, 0]], [0, fov[1, 1]], [0, fov[1, 2]], color=(1, 1, 1), tube_radius=None, line_width=1,
+                    figure=fig)
 
     mlab.orientation_axes()
-    mlab.view(azimuth=180, elevation=None, distance=50,focalpoint=[12.0909996, -1.04700089, -2.03249991])
+    mlab.view(azimuth=180, elevation=None, distance=50, focalpoint=[12.0909996, -1.04700089, -2.03249991])
 
     mlab.show()
+
 
 def show_rpn_tf(img, gt_bv_box, anchors, box_pred=None):
     bv_data = tf.reshape(img[:, :, :, 8], (601, 601, 1))
@@ -129,6 +135,7 @@ def show_rpn_tf(img, gt_bv_box, anchors, box_pred=None):
         return tf.py_func(show_bbox, [bv_img, gt_bv_box, anchors, box_pred], tf.float32)
 
     return tf.py_func(show_bbox, [bv_img, gt_bv_box, anchors], tf.float32)
+
 
 def show_bbox(bv_image, bv_gt, anchors, bv_box_pred=None):
     cnt = anchors.shape[0]
@@ -157,11 +164,11 @@ def show_bbox(bv_image, bv_gt, anchors, bv_box_pred=None):
     # cv2.imwrite(filePath+fileName,bv_image)
     return bv_image
 
-#  using vispy
-def pcd_vispy(scans=None, boxes=None,name=None,vis_size=(800,600),now=True):
-    pos = scans[:, :3]
 
-    canvas = vispy.scene.SceneCanvas(title=name,keys='interactive',size=vis_size, show=True)
+#  using vispy
+def pcd_vispy(scans=None, boxes=None, name=None, vis_size=(800, 600), now=True):
+    pos = scans[:, :3]
+    canvas = vispy.scene.SceneCanvas(title=name, keys='interactive', size=vis_size, show=True)
     vb = canvas.central_widget.add_view()
     vb.camera = 'turntable'
     vb.camera.elevation = 19.0
@@ -175,33 +182,33 @@ def pcd_vispy(scans=None, boxes=None,name=None,vis_size=(800,600),now=True):
     vb.add(scatter)
 
     if boxes is not None:
-        boxes = boxes.reshape(-1,8)
-        gt_indice = np.where(boxes[:,-1] ==2)[0]
-        gt_cnt=len(gt_indice)
-        i=0
+        boxes = boxes.reshape(-1, 9)
+        gt_indice = np.where(boxes[:, -1] == 2)[0]
+        gt_cnt = len(gt_indice)
+        i = 0
         for box in boxes:
-            if box[-1] !=2:
-                vsp_box = visuals.Box(width=box[4], height=box[6], depth=box[5], color=(0, 0, 0, 0.), edge_color='green')
-            else:
-                i=i+1
-                vsp_box = visuals.Box(width=box[4], height=box[6], depth=box[5], color=(0, 0.8, 0.6, 0.1),edge_color='yellow')
+            if box[-1] == 2:  #  gt boxes
+                i = i + 1
+                vsp_box = visuals.Box(width=box[4],  depth=box[5],height=box[6], color=(0.6, 0.8, 0.0, 0.3))#edge_color='yellow')
 
-                text=visuals.Text(text='gt: ({}/{})'.format(i,gt_cnt), color='white', face='OpenSans', font_size=12, pos=[box[1], box[2], box[3]],
-                                  anchor_x='left', anchor_y='top', font_manager=None)
+                text = visuals.Text(text='gt: ({}/{})'.format(i, gt_cnt), color='white', face='OpenSans', font_size=12,
+                                    pos=[box[1], box[2], box[3]],anchor_x='left', anchor_y='top', font_manager=None)
                 vb.add(text)
 
-            mesh_box = vsp_box.mesh.mesh_data
-            mesh_border_box = vsp_box.border.mesh_data
-            vertices = mesh_box.get_vertices()
-            center = np.array([box[1], box[2], box[3]], dtype=np.float32)
-            vtcs = np.add(vertices, center)
-            mesh_border_box.set_vertices(vtcs)
-            mesh_box.set_vertices(vtcs)
-            vb.add(vsp_box)
+                mesh_box = vsp_box.mesh.mesh_data
+                mesh_border_box = vsp_box.border.mesh_data
+                vertices = mesh_box.get_vertices()
+                center = np.array([box[1], box[2], box[3]], dtype=np.float32)
+                vtcs = np.add(vertices, center)
+                mesh_border_box.set_vertices(vtcs)
+                mesh_box.set_vertices(vtcs)
+                vb.add(vsp_box)
 
+            if box[-1] == 0:
+                vb.add(line_box(box,color='green'))
+            if box[-1] == 1:
+                vb.add(line_box(box,color='red'))
     # vpio.write_png('name.png',)
-    # line1 = visuals.Line(pos=((1, 1, 1), (14, 14, 14)), connect='strip', width=15, color=(1, 1, 0, 1), method='gl',antialias=True)
-    # vb.add(line1)
     if now:
         vispy.app.run()
         vispy.app.quit()
@@ -209,15 +216,34 @@ def pcd_vispy(scans=None, boxes=None,name=None,vis_size=(800,600),now=True):
     @canvas.connect
     def on_key_press(ev):
         if ev.key.name in '+=':
-            a =vb.camera.get_state()
+            a = vb.camera.get_state()
         print(a)
 
     return canvas
+
 
 def pcd_show_now():
     vispy.app.run()
     vispy.app.quit()
 
+
 def vispy_init():
     import vispy
     v = vispy.app.Canvas()
+
+
+def line_box(box,color=(0, 1, 0, 0.1)):
+    p0 = np.array([box[1] - float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
+    p1 = np.array([box[1] - float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
+    p2 = np.array([box[1] + float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
+    p3 = np.array([box[1] + float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
+
+    p4 = np.array([box[1] - float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] + float(box[6]) / 2.0, ])
+    p5 = np.array([box[1] - float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, box[3] + float(box[6]) / 2.0, ])
+    p6 = np.array([box[1] + float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, box[3] + float(box[6]) / 2.0, ])
+    p7 = np.array([box[1] + float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] + float(box[6]) / 2.0, ])
+
+    pos = np.vstack((p0,p1,p2,p3,p0,p4,p5,p6,p7,p4,p5,p1,p2,p6,p7,p3))
+    lines = visuals.Line(pos=pos, connect='strip', width=1, color=color, method='gl')
+
+    return lines
