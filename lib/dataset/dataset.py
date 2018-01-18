@@ -210,13 +210,13 @@ class dataset_train(object):  # read txt files one by one
             input_num = len(os.listdir(osp.join(data_path, 'velodyne')))
             test_index = []
             train_index = []
-            temp_index = sorted(random.sample(range(input_num), int(input_num * 0.900)))
+            temp_index = sorted(random.sample(range(input_num), int(input_num * 0.9990)))
             # generate test index
             for i in range(input_num):
                 if i not in temp_index:
                     test_index.append(i)
             # generate valid index
-            valid_index = sorted(random.sample(temp_index, int(input_num * 0.100)))
+            valid_index = sorted(random.sample(temp_index, int(input_num * 0.160)))
             # generate train index
             for k in temp_index:
                 if k not in valid_index:

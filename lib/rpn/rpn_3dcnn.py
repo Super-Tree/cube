@@ -19,8 +19,9 @@ def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes):
     reflectance = lidarPoints[:, 3]
 
     if DEBUG:
-        pass
-        pcd_vispy(lidarPoints,rpnBoxes)
+        print 'Start vispy ...'
+        pcd_vispy(lidarPoints, rpnBoxes, now=False)
+        display_stack = [pcd_vispy(lidarPoints, rpnBoxes,now=False)]
 
     res = []
     for box in rpnBoxes:
@@ -52,16 +53,16 @@ def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes):
         # a= points_mv_ctr[:,3:]
         # b = np.ones([len(indice),1])
         feature = np.hstack((np.ones([len(indice),1]),points_mv_ctr[:,3:]))
-        cubic_feature[x_cub, y_cub, z_cub] = feature #TODO:select&add feature # points_mv_ctr  # using center coordinate system
+        cubic_feature[x_cub, y_cub, z_cub] = feature  # TODO:select&add feature # points_mv_ctr  # using center coordinate system
         res.append(cubic_feature)
 
         if DEBUG:
             box_mv = [box[0], box[1] - box[1], box[2] - box[2], box[3] - box[3], cfg.ANCHOR[0], cfg.ANCHOR[1],
                       cfg.ANCHOR[2], box[7]]
-            pcd_vispy(cubic_feature.reshape(-1, 4), np.array(box_mv),now=False)
+            display_stack.append(pcd_vispy(cubic_feature.reshape(-1, 4), np.array(box_mv),now=False))
             # TODO: deal with multi-windows display
-            pcd_show_now()
-
+    if DEBUG:
+        pcd_show_now()
     stack_size = np.concatenate((np.array([-1]), cubic_size))
     return np.array(res, dtype=np.float32).reshape(stack_size)
 

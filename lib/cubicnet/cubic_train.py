@@ -202,7 +202,7 @@ class combinet_train(object):
                 cubic_car_cls_prec = one_hist[1, 1] / (one_hist[1, 1] + one_hist[0, 1]+1e-5)
                 cubic_car_cls_recall = one_hist[1, 1] / (one_hist[1, 1] + one_hist[1, 0]+1e-5)
 
-                if iter % 51==0 and cfg.TRAIN.DEBUG_TIMELINE:
+                if iter % 102==0 and cfg.TRAIN.DEBUG_TIMELINE:
                     #chrome://tracing
                     trace = timeline.Timeline(step_stats=run_metadata.step_stats)
                     trace_file = open(cfg.LOG_DIR+'/'+str(long(time.time() * 1000)) + '-train-timeline.ctf.json', 'w')

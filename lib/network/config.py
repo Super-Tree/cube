@@ -1,7 +1,14 @@
-
+# coding=utf-8
 import os.path as osp
 from easydict import EasyDict as edict
 from distutils import spawn
+
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'  # or any {'0', '1', '2'}
+# 默认为0：输出所有log信息
+# 设置为1：进一步屏蔽INFO信息
+# 设置为2：进一步屏蔽WARNING信息
+# 设置为3：进一步屏蔽ERROR信息
 
 __C = edict()
 
@@ -30,6 +37,8 @@ if spawn.find_executable("nvcc",path="/usr/local/cuda-8.0/bin/"):
     # Default GPU device id
     __C.GPU_ID = 0
 else:
+    print ('File: config.py '
+           'Notice: nvcc not found')
     __C.USE_GPU_NMS = False
 
 

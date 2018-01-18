@@ -2,6 +2,7 @@
 PYTHONPATH=/opt/ros/indigo/lib/python2.7/dist-packages;
 PYTHONUNBUFFERED=1;
 LD_LIBRARY_PATH=/usr/local/cuda/lib64
+CUDA_VISIBLE_DEVICES = 0
 """
 import _init_paths
 import argparse
