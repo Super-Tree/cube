@@ -1,22 +1,23 @@
 # coding=utf-8
-import tensorflow as tf
-from network.config import cfg
-from tools.utils import fast_hist
 from tools.data_visualize import show_rpn_tf
-from tensorflow.python.client import timeline
+
 import time
-from tools.timer import Timer
 import os
 import math
 import random
 import string
 import numpy as np
-from tools.data_visualize import draw_3dPoints_box,pcd_vispy
+import tensorflow as tf
+from tools.timer import Timer
+from network.config import cfg
+from tools.utils import fast_hist
+from tensorflow.python.client import timeline
 from tensorflow.python import pywrap_tensorflow
+from tools.data_visualize import pcd_vispy,vispy_init
 
-DEBUG = False
+DEBUG = True
 
-class combinet_train(object):
+class CubicNet_Train(object):
     def __init__(self, network, data_set, args):
         self.saver = tf.train.Saver(max_to_keep=100)
         self.net = network
@@ -31,7 +32,7 @@ class combinet_train(object):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
         if not final:
-            filename = os.path.join(output_dir, 'CombiNet_iter_{:d}'.format(iter) + '.ckpt')
+            filename = os.path.join(output_dir, 'CubicNet_iter_{:d}'.format(iter) + '.ckpt')
             self.saver.save(sess, filename)
             print 'Wrote snapshot to: {:s}'.format(filename)
         else:
@@ -147,7 +148,7 @@ class combinet_train(object):
 
         sess.run(tf.global_variables_initializer())
         if self.args.fine_tune:
-            if False:
+            if True:
                 # #full graph restore
                 print 'Loading pre-trained model weights from {:s}'.format(self.args.weights)
                 self.net.load(self.args.weights, sess, self.saver, True)
@@ -173,6 +174,7 @@ class combinet_train(object):
         cubic_grid = self.net.get_output('cubic_grid')
         cubic_cnn= self.net.get_output('cubic_cnn')
 
+        vispy_init()  # TODO: Essential step(before sess.run) for using vispy beacuse of the bug of opengl or tensorflow
         training_series = range(self.epoch)  # self.epoch
         for epo_cnt in range(self.args.epoch_iters):
             for data_idx in training_series:  # DO NOT EDIT the "training_series",for the latter shuffle
@@ -192,10 +194,8 @@ class combinet_train(object):
                 timer.tic()
                 cubic_cls_score_,cubic_cls_labels_,rpn_rois_,cubic_cnn_,cubic_grid_, loss_, merged_, _ = sess.run(
                     [cubic_cls_score,cubic_cls_labels,rpn_rois,cubic_cnn,cubic_grid,loss, merged, train_op],
-                    feed_dict=feed_dict,
-                    options=run_options, run_metadata=run_metadata)
+                    feed_dict=feed_dict,options=run_options, run_metadata=run_metadata)
                 timer.toc()
-
                 recall_RPN = recall_RPN + rpn_rois_[2][0]
                 cubic_result = cubic_cls_score_.argmax(axis=1)
                 one_hist = fast_hist(cubic_cls_labels_, cubic_result)
@@ -224,7 +224,6 @@ class combinet_train(object):
                     self.snapshot(sess, iter)
                     pass
                 if DEBUG:
-                    # data_show('/home/hexindong/ws_dl/pyProj/CubicNet-server/data/training/', iter)
                     scan = blobs['lidar3d_data']
                     gt_box3d = blobs['gt_boxes_3d'][:, (6, 0, 1, 2, 3, 4, 5)]
                     gt_box3d = np.hstack((gt_box3d,np.ones([gt_box3d.shape[0],1])*2))
@@ -289,7 +288,7 @@ class combinet_train(object):
         self.snapshot(sess, iter, final=True)
 
 def network_training(network, data_set, args):
-    net = combinet_train(network, data_set, args)
+    net = CubicNet_Train(network, data_set, args)
 
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True

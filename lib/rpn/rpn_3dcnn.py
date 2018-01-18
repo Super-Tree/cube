@@ -20,7 +20,6 @@ def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes):
 
     if DEBUG:
         print 'Start vispy ...'
-        pcd_vispy(lidarPoints, rpnBoxes, now=False)
         display_stack = [pcd_vispy(lidarPoints, rpnBoxes,now=False)]
 
     res = []

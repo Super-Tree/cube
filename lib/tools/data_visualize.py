@@ -212,7 +212,12 @@ def pcd_vispy(scans=None, boxes=None,name=None,vis_size=(800,600),now=True):
             a =vb.camera.get_state()
         print(a)
 
+    return canvas
+
 def pcd_show_now():
     vispy.app.run()
     vispy.app.quit()
 
+def vispy_init():
+    import vispy
+    v = vispy.app.Canvas()
