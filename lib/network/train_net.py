@@ -1,14 +1,11 @@
 
-
+from config import cfg
 from network import Network
 import tensorflow as tf
 
-anchor_scales = [1.0, 1.0]
-anchor_num = 1
-_feat_stride = [8, 8]
 
-auto = False  # control the head network whether to be trained in cubic net
-
+_feat_stride = [8, 8]  # scale cnt of pool and stride
+trainable_auto = False  # control the head network whether to be trained in cubic net
 
 class train_net(Network):
     def __init__(self, gpu_use):
@@ -35,29 +32,29 @@ class train_net(Network):
         # for idx, dev in enumerate(gpu_id):
         #     with tf.device('/gpu:{}'.format(dev)), tf.name_scope('gpu_{}'.format(dev)):
         (self.feed('lidar_bv_data')
-         .conv(3, 3, 64, 1, 1, name='conv1_1', trainable=auto)
-         .conv(3, 3, 64, 1, 1, name='conv1_2', trainable=auto)
+         .conv(3, 3, 64, 1, 1, name='conv1_1', trainable=trainable_auto)
+         .conv(3, 3, 64, 1, 1, name='conv1_2', trainable=trainable_auto)
          .max_pool(2, 2, 2, 2, padding='VALID', name='pool1')
-         .conv(3, 3, 128, 1, 1, name='conv2_1', trainable=auto)
-         .conv(3, 3, 128, 1, 1, name='conv2_2', trainable=auto)
+         .conv(3, 3, 128, 1, 1, name='conv2_1', trainable=trainable_auto)
+         .conv(3, 3, 128, 1, 1, name='conv2_2', trainable=trainable_auto)
          .max_pool(2, 2, 2, 2, padding='VALID', name='pool2')
-         .conv(3, 3, 256, 1, 1, name='conv3_1', trainable=auto)
-         .conv(3, 3, 256, 1, 1, name='conv3_2', trainable=auto)
-         .conv(3, 3, 256, 1, 1, name='conv3_3', trainable=auto)
+         .conv(3, 3, 256, 1, 1, name='conv3_1', trainable=trainable_auto)
+         .conv(3, 3, 256, 1, 1, name='conv3_2', trainable=trainable_auto)
+         .conv(3, 3, 256, 1, 1, name='conv3_3', trainable=trainable_auto)
          .max_pool(2, 2, 2, 2, padding='VALID', name='pool3')
-         .conv(3, 3, 512, 1, 1, name='conv4_1', trainable=auto)
-         .conv(3, 3, 512, 1, 1, name='conv4_2', trainable=auto)
-         .conv(3, 3, 512, 1, 1, name='conv4_3', trainable=auto)
-         .conv(3, 3, 512, 1, 1, name='conv5_1', trainable=auto)
-         .conv(3, 3, 512, 1, 1, name='conv5_2', trainable=auto)
-         .conv(3, 3, 512, 1, 1, name='conv5_3', trainable=auto))
+         .conv(3, 3, 512, 1, 1, name='conv4_1', trainable=trainable_auto)
+         .conv(3, 3, 512, 1, 1, name='conv4_2', trainable=trainable_auto)
+         .conv(3, 3, 512, 1, 1, name='conv4_3', trainable=trainable_auto)
+         .conv(3, 3, 512, 1, 1, name='conv5_1', trainable=trainable_auto)
+         .conv(3, 3, 512, 1, 1, name='conv5_2', trainable=trainable_auto)
+         .conv(3, 3, 512, 1, 1, name='conv5_3', trainable=trainable_auto))
         # ========= RPN ============
         (self.feed('conv5_3')
          # .deconv(shape=None, c_o=512, stride=2, ksize=3,  name='deconv_2x_1')
-         .conv(3, 3, 512, 1, 1, name='rpn_conv/3x3', trainable=auto)
-         .conv(1, 1, anchor_num * 2, 1, 1, padding='VALID', relu=False, name='rpn_cls_score', trainable=auto))
+         .conv(3, 3, 512, 1, 1, name='rpn_conv/3x3', trainable=trainable_auto)
+         .conv(1, 1, cfg.ANCHOR_CNT * 2, 1, 1, padding='VALID', relu=False, name='rpn_cls_score', trainable=trainable_auto))
         (self.feed('rpn_conv/3x3')
-         .conv(1, 1, anchor_num * 3, 1, 1, padding='VALID', relu=False, name='rpn_bbox_pred', trainable=auto))
+         .conv(1, 1, cfg.ANCHOR_CNT * 3, 1, 1, padding='VALID', relu=False, name='rpn_bbox_pred', trainable=trainable_auto))
 
         (self.feed('rpn_cls_score', 'gt_boxes_bv', 'gt_boxes_3d', 'im_info')
          .anchor_target_layer(_feat_stride, name='rpn_anchors_label'))
@@ -65,7 +62,7 @@ class train_net(Network):
         (self.feed('rpn_cls_score')
          .reshape_layer(2, name='rpn_cls_score_reshape')
          .softmax(name='rpn_cls_prob')
-         .reshape_layer(anchor_num * 2, name='rpn_cls_prob_reshape'))
+         .reshape_layer(cfg.ANCHOR_CNT * 2, name='rpn_cls_prob_reshape'))
 
         (self.feed('rpn_cls_prob_reshape', 'rpn_bbox_pred', 'im_info', 'gt_boxes_bv')
          .proposal_layer_3d(_feat_stride, 'TRAIN', name='rpn_rois'))
@@ -80,6 +77,3 @@ class train_net(Network):
          .cubic_cnn(name='cubic_cnn')
          )
 
-
-
-        pass
