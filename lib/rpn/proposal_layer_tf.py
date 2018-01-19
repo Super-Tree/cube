@@ -188,6 +188,117 @@ def proposal_layer_3d(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, gt_bv, cfg_k
 
     return blob_bv, blob_3d, recall
 
+def generate_rpn(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_stride=[8, 8]):
+
+    test_debug = False
+    start = datetime.datetime.now()
+    _anchors = generate_anchors_bv()
+    _num_anchors = _anchors.shape[0]
+    im_info = im_info[0]
+    assert rpn_cls_prob_reshape.shape[0] == 1, 'Only single item batches are supported'
+    pre_nms_topN = cfg[cfg_key].RPN_PRE_NMS_TOP_N
+    post_nms_topN = cfg[cfg_key].RPN_POST_NMS_TOP_N
+    nms_thresh = cfg[cfg_key].RPN_NMS_THRESH
+
+    height, width = rpn_cls_prob_reshape.shape[1:3]
+    scores = np.reshape(np.reshape(rpn_cls_prob_reshape, [1, height, width, _num_anchors, 2])[:, :, :, :, 1],
+                        [1, height, width, _num_anchors])  # extract the second kind (fg) scores
+    bbox_deltas = rpn_bbox_pred
+    if test_debug:
+        print 'im_size: ({}, {})'.format(im_info[0], im_info[1])
+        print 'rpn_bbox_pred shape : {}'.format(rpn_bbox_pred.shape)
+
+    # 1. Generate proposals from bbox deltas and shifted anchors
+    if test_debug:
+        print 'score map size: {}'.format(scores.shape)
+        pass
+
+    # Enumerate all shifts
+    # TODO: replace generate anchors by load from file
+    shift_x = np.arange(0, width) * _feat_stride[0]
+    shift_y = np.arange(0, height) * _feat_stride[1]
+    shift_x, shift_y = np.meshgrid(shift_x, shift_y)
+    shifts = np.vstack((shift_x.ravel(), shift_y.ravel(),
+                        shift_x.ravel(), shift_y.ravel())).transpose()
+    # Enumerate all shifted anchors:
+    # add A anchors (1, A, 4) to
+    # cell K shifts (K, 1, 4) to get
+    # shift anchors (K, A, 4)
+    # reshape to (K*A, 4) shifted anchors
+    A = _num_anchors
+    K = shifts.shape[0]
+    anchors = _anchors.reshape((1, A, 4)) + shifts.reshape((1, K, 4)).transpose((1, 0, 2))
+    anchors = anchors.reshape((K * A, 4))
+    bbox_deltas = bbox_deltas.reshape((-1, 3))  # delta x delta y delta z
+    scores = scores.reshape((-1, 1))
+
+    if test_debug:
+        print "anchors before filter"
+        print "anchors shape: ", anchors.shape
+        print "scores shape: ", scores.shape
+
+    # only keep anchors inside the image
+    inds_inside = _filter_anchors(anchors, im_info, allowed_border=0)
+    anchors = anchors[inds_inside, :]
+    scores = scores[inds_inside]
+    bbox_deltas = bbox_deltas[inds_inside, :]
+
+    # convert anchors bv to anchors_3d
+    anchors_3d = bv_anchor_to_lidar(anchors)
+    # Convert anchors into proposals via bbox transformations
+    proposals_3d = bbox_transform_inv_3d(anchors_3d, bbox_deltas)
+    # convert back to lidar_bv
+    proposals_bv = lidar_3d_to_bv(proposals_3d)
+    if test_debug:
+        print "after filter"
+        print "proposals_bv shape: ", proposals_bv.shape
+        print "proposals_3d shape: ", proposals_3d.shape
+        print "scores shape: ", scores.shape
+
+    order = scores.ravel().argsort()[::-1]
+    if pre_nms_topN > 0:
+        order = order[:pre_nms_topN]
+    proposals_bv = proposals_bv[order, :]
+    proposals_3d = proposals_3d[order, :]
+    scores = scores[order]
+
+    # 6. apply nms (e.g. threshold = 0.7)
+    # 7. take after_nms_topN (e.g. 300)
+    # 8. return the top proposals (-> RoIs top)
+    if test_debug:
+        print "proposals before nms"
+        print "proposals_bv shape: ", proposals_bv.shape
+        print "proposals_3d shape: ", proposals_3d.shape
+
+    keep = nms(np.hstack((proposals_bv, scores)), nms_thresh,force_cpu=False)#TODO:cpu instead and re-edit later !!!
+    if test_debug:
+        print keep
+        print 'keep.shape',len(keep)
+    if post_nms_topN > 0:
+        keep = keep[:post_nms_topN]
+    proposals_bv = proposals_bv[keep, :]
+    proposals_3d = proposals_3d[keep, :]
+    # proposals_img = proposals_img[keep, :]
+    scores = scores[keep]
+
+    if test_debug:
+        print "proposals after nms"
+        print "proposals_bv shape: ", proposals_bv.shape
+        print "proposals_3d shape: ", proposals_3d.shape
+
+    # Output rois blob
+    # Our RPN implementation only supports a single input image, so all
+    # batch inds are 0
+    length = proposals_bv.shape[0]
+    blob_bv = np.hstack((scores, proposals_bv.astype(np.float32, copy=False),np.zeros((length,1),dtype=np.float32)))
+    blob_3d = np.hstack((scores, proposals_3d.astype(np.float32, copy=False),np.zeros((length,1),dtype=np.float32)))
+    end = datetime.datetime.now()
+
+    if test_debug:
+        pass
+        print 'NMS & bbox use time:', end - start
+
+    return blob_bv, blob_3d
 
 def _filter_anchors(anchors, im_info, allowed_border):
     """Remove all boxes with any side smaller than min_size."""

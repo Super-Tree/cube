@@ -14,7 +14,6 @@ import cPickle
 import scipy.sparse
 from tools.transform import camera_to_lidar_cnr, computeCorners3D, lidar_3d_to_bv, lidar_cnr_to_3d, my_conner2bvbox
 from network.config import cfg
-import numpy.random as npr
 import socket
 
 
@@ -471,28 +470,22 @@ class dataset_test(object):  # read txt files one by one
         if arguments.use_demo:
             self._data_path = osp.join(osp.dirname(__file__), '../../data', 'demo_0064')  # data path
         else:
-            self._data_path = osp.join(osp.dirname(__file__), '../../data', 'training')  # data path
+            self._data_path = osp.join(osp.dirname(__file__), '../../data', 'testing')  # data path
         self._class_to_ind = dict(zip(self._classes, xrange(self.num_classes)))
         self.inputIndex = self.get_fileIndex(self._data_path)
         self.input_num = len(self.inputIndex['test_index'])
 
-        print 'The kitti dataset(test:{}) is using for testing ...'.format(self.input_num)
+        print 'The kitti dataset(cnt:{}) is using for testing ...'.format(self.input_num)
         self.roidb = self.prepare_roidb()
         pass
 
     def prepare_roidb(self):
-        """Enrich the imdb's roidb by adding some derived quantities that
-        are useful for training. This function precomputes the maximum
-        overlap, taken over ground-truth boxes, between each ROI and
-        each ground-truth box. The class with maximum overlap is also
-        recorded.
-        """
         roidb = [dict({}) for _ in range(self.input_num)]
-        indice = lambda i, name: self.inputIndex[name][i]
+        indice = lambda idx, name: self.inputIndex[name][idx]
         for i in xrange(self.input_num):
             roidb[i]['lidar3d_path'] = self.lidar3d_path_at(indice(i, 'test_index'))
             roidb[i]['lidar_bv_path'] = self.lidar_bv_path_at(indice(i, 'test_index'))
-            roidb[i]['calib'] = self.calib_at(indice(i, 'test_index'))
+            roidb[i]['calib'] = self.get_calib(indice(i, 'test_index'))
         return roidb
 
     def lidar3d_path_at(self, index):
@@ -519,12 +512,27 @@ class dataset_test(object):  # read txt files one by one
             'Path does not exist: {}'.format(lidar_bv_path)
         return lidar_bv_path
 
-    def calib_at(self, index):
-        """
-        Return the calib sequence.
-        """
+    def get_calib(self, index):
 
-        calib_ori = self.load_kitti_calib(index)
+        calib_dir = os.path.join(self._data_path, 'calib', str(index).zfill(6) + '.txt')
+
+        with open(calib_dir) as fi:
+            lines = fi.readlines()
+
+        obj = lines[2].strip().split(' ')[1:]
+        P2 = np.array(obj, dtype=np.float32)
+        obj = lines[3].strip().split(' ')[1:]
+        P3 = np.array(obj, dtype=np.float32)
+        obj = lines[4].strip().split(' ')[1:]
+        R0 = np.array(obj, dtype=np.float32)
+        obj = lines[5].strip().split(' ')[1:]
+        Tr_velo_to_cam = np.array(obj, dtype=np.float32)
+
+        calib_ori= {'P2': P2.reshape(3, 4),
+                    'P3': P3.reshape(3, 4),
+                    'R0': R0.reshape(3, 3),
+                    'Tr_velo2cam': Tr_velo_to_cam.reshape(3, 4)}
+        # calib_ori = self.load_kitti_calib(index)
         calib = np.zeros((4, 12))
         calib[0, :] = calib_ori['P2'].reshape(12)
         calib[1, :] = calib_ori['P3'].reshape(12)
@@ -537,44 +545,6 @@ class dataset_test(object):  # read txt files one by one
         length = len(os.listdir(osp.join(data_path, 'lidar_bv')))
         test_index = range(length)
         return dict({'test_index': test_index})
-
-    def load_kitti_calib(self, index):
-        """
-        load projection matrix
-        """
-        calib_dir = os.path.join(self._data_path, 'calib', str(index).zfill(6) + '.txt')
-        #         P0 = np.zeros(12, dtype=np.float32)
-        #         P1 = np.zeros(12, dtype=np.float32)
-        #         P2 = np.zeros(12, dtype=np.float32)
-        #         P3 = np.zeros(12, dtype=np.float32)
-        #         R0 = np.zeros(9, dtype=np.float32)
-        #         Tr_velo_to_cam = np.zeros(12, dtype=np.float32)
-        #         Tr_imu_to_velo = np.zeros(12, dtype=np.float32)
-
-        #         j = 0
-        with open(calib_dir) as fi:
-            lines = fi.readlines()
-        # assert(len(lines) == 8)
-
-        # obj = lines[0].strip().split(' ')[1:]
-        # P0 = np.array(obj, dtype=np.float32)
-        # obj = lines[1].strip().split(' ')[1:]
-        # P1 = np.array(obj, dtype=np.float32)
-        obj = lines[2].strip().split(' ')[1:]
-        P2 = np.array(obj, dtype=np.float32)
-        obj = lines[3].strip().split(' ')[1:]
-        P3 = np.array(obj, dtype=np.float32)
-        obj = lines[4].strip().split(' ')[1:]
-        R0 = np.array(obj, dtype=np.float32)
-        obj = lines[5].strip().split(' ')[1:]
-        Tr_velo_to_cam = np.array(obj, dtype=np.float32)
-        # obj = lines[6].strip().split(' ')[1:]
-        # P0 = np.array(obj, dtype=np.float32)
-
-        return {'P2': P2.reshape(3, 4),
-                'P3': P3.reshape(3, 4),
-                'R0': R0.reshape(3, 3),
-                'Tr_velo2cam': Tr_velo_to_cam.reshape(3, 4)}
 
     def get_minibatch(self, idx=0):
         """Given a roidb, construct a minibatch sampled from it."""

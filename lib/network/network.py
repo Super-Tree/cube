@@ -6,7 +6,7 @@ from VFE import VFE
 
 from rpn_classify import rpn_serial_extract_tf
 from rpn.anchor_target_layer_tf import anchor_target_layer as anchor_target_layer_py
-from rpn.proposal_layer_tf import proposal_layer_3d as proposal_layer_py_3d
+from rpn.proposal_layer_tf import proposal_layer_3d as proposal_layer_py_3d,generate_rpn
 from rpn.rpn_3dcnn import cubic_rpn_grid_pyfc,cubic
 
 def layer(op):
@@ -360,6 +360,16 @@ class Network(object):
             rpn_rois_bv = tf.reshape(rpn_rois_bv, [-1, 6], name='rpn_rois_bv')
             rpn_rois_3d = tf.reshape(rpn_rois_3d, [-1, 8], name='rpn_rois_3d')
         return rpn_rois_bv, rpn_rois_3d, rpn_recall
+
+    @layer
+    def generate_rpn(self, input, _feat_stride, cfg_key, name):
+
+        with tf.variable_scope(name,reuse=tf.AUTO_REUSE) as scope:
+            rpn_rois_bv, rpn_rois_3d = tf.py_func(generate_rpn,[input[0], input[1], input[2], cfg_key, _feat_stride],
+                                                  [tf.float32, tf.float32])
+            rpn_rois_bv = tf.reshape(rpn_rois_bv, [-1, 6], name='rpn_rois_bv') # [score,x,y,l,w,rpn_label]
+            rpn_rois_3d = tf.reshape(rpn_rois_3d, [-1, 8], name='rpn_rois_3d') # [score,x,y,z,l,w,h,rpn_label]
+        return rpn_rois_bv, rpn_rois_3d
 
     @layer
     def cubic_grid(self, input, name):

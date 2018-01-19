@@ -7,15 +7,12 @@ from tools.timer import Timer
 import os
 import random
 import string
-import cv2
 import numpy as np
-from tools.transform import lidar_3d_to_bv
+from tools.data_visualize import pcd_vispy,vispy_init,test_show_rpn_tf
 
-DEBUG = False
-random_folder = ''.join(random.sample(string.ascii_letters, 4))
-os.makedirs(cfg.TEST_RESULT + '/' + random_folder)
+VISION_DEBUG = True
 
-class combinet_test(object):
+class CubicNet_Test(object):
     def __init__(self, network, data_set, args):
         self.saver = tf.train.Saver(max_to_keep=100)
         self.net = network
@@ -24,56 +21,67 @@ class combinet_test(object):
         self.epoch = self.dataset.input_num
 
     def testing(self, sess, test_writer):
-        with tf.name_scope('loss_cubic'):
-            tf.summary.scalar('total_loss', 1)
         with tf.name_scope('view_cubic_rpn'):
             roi_bv = self.net.get_output('rpn_rois')[0]
             data_bv = self.net.lidar_bv_data
-            image_rpn = tf.reshape(show_rpn_tf(data_bv,roi_bv), (1, 601, 601, -1))
+            image_rpn = tf.reshape(test_show_rpn_tf(data_bv,roi_bv), (1, 601, 601, -1))
             tf.summary.image('lidar_bv_test', image_rpn)
-        merged = tf.summary.merge_all()
 
-        weights = self.args.weights
-        if weights.endswith('.ckpt'):
-            print 'Loading pre-trained model weights from {:s}'.format(self.args.weights)
-            self.saver.restore(sess, weights)
-        else:
-            print "error: Function [combinet_test.testing] can not load weights {:s}!".format(self.args.weights)
-            return 0
+            merged = tf.summary.merge_all()
 
+        with tf.name_scope('load_weights'):
+            weights = self.args.weights
+            if weights.endswith('.ckpt'):
+                print 'Loading test model weights from {:s}'.format(self.args.weights)
+                self.saver.restore(sess, weights)
+            else:
+                print "error: Function [combinet_test.testing] can not load weights {:s}!".format(self.args.weights)
+                return 0
+
+        cubic_cls_score = tf.reshape(self.net.get_output('cubic_cnn'), [-1, 2])
+        rpn_3d = tf.reshape(self.net.get_output('rpn_rois')[1],[-1,8])
+
+        vispy_init()  # TODO: Essential step(before sess.run) for using vispy beacuse of the bug of opengl or tensorflow
         timer = Timer()
         for idx in range(self.epoch):
-            # get one batch
             blobs = self.dataset.get_minibatch(idx)
             feed_dict = {
                 self.net.lidar3d_data: blobs['lidar3d_data'],
                 self.net.lidar_bv_data: blobs['lidar_bv_data'],
                 self.net.im_info: blobs['im_info'],
                 self.net.calib: blobs['calib']}
-            run_options = None
-            run_metadata = None
+            run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+            run_metadata = tf.RunMetadata()
             timer.tic()
-            RPN_view = sess.run(merged, feed_dict=feed_dict, options=run_options, run_metadata=run_metadata)
+            cubic_cls_score_,rpn_3d_,summary = \
+                sess.run([cubic_cls_score,rpn_3d,merged],
+                         feed_dict=feed_dict, options=run_options, run_metadata=run_metadata)
             timer.toc()
+            cubic_result = cubic_cls_score_.argmax(axis=1)
 
             if cfg.TEST.DEBUG_TIMELINE:
+                # chrome://tracing
                 trace = timeline.Timeline(step_stats=run_metadata.step_stats)
-                trace_file = open(str(long(time.time() * 1000)) + '-test-timeline.ctf.json', 'w')
+                trace_file = open(cfg.LOG_DIR + '/' + str(long(time.time() * 1000)) + '-test-timeline.ctf.json', 'w')
                 trace_file.write(trace.generate_chrome_trace_format(show_memory=False))
                 trace_file.close()
             if idx % cfg.TEST.ITER_DISPLAY == 0:
-                print 'Test: %d / %d, total loss: %.4f, rpn_loss_cls: %.4f, rpn_loss_box: %.4f,' % \
-                      (idx+1, self.epoch, 0.1,0.1, 0.1)
-                print 'speed: {:.3f}s / iter'.format(timer.average_time)
+                print 'Test: %06d/%06d  speed: %.4f s / iter' % (idx+1, self.epoch, timer.average_time)
+
+            if VISION_DEBUG:
+                scan = blobs['lidar3d_data']
+                pred_boxes = np.hstack((rpn_3d_, cubic_result.reshape(-1, 1)*2))
+                pcd_vispy(scan, pred_boxes,test=True)
+
             if idx % 1 == 0 and cfg.TEST.TENSORBOARD:
-                test_writer.add_summary(RPN_view, idx)
+                test_writer.add_summary(summary, idx)
                 pass
 
-        print 'Test process has done!'
+        print 'Testing process has done, happy every day !'
 
 
 def network_testing(network, data_set, args):
-    net = combinet_test(network, data_set, args)
+    net = CubicNet_Test(network, data_set, args)
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
 
@@ -82,30 +90,3 @@ def network_testing(network, data_set, args):
         net.testing(sess, test_writer)
 
 
-def show_rpn_tf(img, box_pred=None):
-    bv_data = tf.reshape(img[:, :, :, 8],(601, 601, 1))
-    bv_data = scales_to_255(bv_data,0,3,tf.float32)
-    bv_img = tf.reshape(tf.stack([bv_data,bv_data,bv_data],3),(601,601,3))
-    return tf.py_func(show_bbox, [bv_img,box_pred], tf.float32)
-
-
-CNT = 0
-
-def show_bbox(bv_image, bv_box):
-    for i in range(bv_box.shape[0]):
-        a = bv_box[i, 0]*255
-        color_pre = (a, a, a)
-        cv2.rectangle(bv_image, (bv_box[i, 1], bv_box[i, 2]), (bv_box[i, 3], bv_box[i, 4]), color=color_pre)
-    #
-    # global CNT
-    # path = cfg.TEST_RESULT + '/' + random_folder
-    # filename = os.path.join(path, str(CNT).zfill(6) + '.png')
-    # # print 'Write image to {:s}'.format(filename(i))
-    # cv2.imwrite(filename, bv_image)
-    # CNT += 1
-    return bv_image
-
-
-def scales_to_255(a, min_, max_, type_):
-    pass
-    return tf.cast(((a - min_) / float(max_ - min_)) * 255, dtype=type_)

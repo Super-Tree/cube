@@ -18,26 +18,20 @@ from cubicnet.cubic_test import network_testing
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a CombineNet network')
-    parser.add_argument('--gpu_id', dest='gpu_id',
-                        help=' which gpu to use', default=[0,1,2,3], type=list)
-
-    parser.add_argument('--method', dest='method',
-                        help=' train or test',choices=['train', 'test'],
+    parser.add_argument('--gpu_id', dest='gpu_id',help=' which gpu to use',
+                        default=[0,1,2,3], type=list)
+    parser.add_argument('--method', dest='method',help=' train or test',choices=['train', 'test'],
                         default="train", type=str)
-    parser.add_argument('--weights', dest='weights',
-                        help='which network weights',
+    parser.add_argument('--weights', dest='weights',help='which network weights',
                         default=None, type=str)
-    parser.add_argument('--epoch_iters', dest='epoch_iters',
-                        help='number of iterations to train',
+    parser.add_argument('--epoch_iters', dest='epoch_iters',help='number of iterations to train',
                         default=18, type=int)
-    parser.add_argument('--imdb_type', dest='imdb_type',
-                        help='dataset to train on(sti/kitti)', choices=['kitti', 'sti'],
+    parser.add_argument('--imdb_type', dest='imdb_type',help='dataset to train on(sti/kitti)', choices=['kitti', 'sti'],
                         default='kitti', type=str)
 
-    parser.add_argument('--useDemo', dest='useDemo',
+    parser.add_argument('--useDemo', dest='useDemo',help='whether use continues frame demo',
                         default="False", type=str)
-    parser.add_argument('--fineTune', dest='fineTune',
-                        help='whether finetune the existing network weight',
+    parser.add_argument('--fineTune', dest='fineTune',help='whether finetune the existing network weight',
                         default='True', type=str)
 
     parser.add_argument('--use_demo', dest='use_demo', default=False, type=bool)
@@ -58,8 +52,13 @@ def checkArgs(Args):
 
     if Args.fineTune == 'True':
         Args.fine_tune = True
+    else:
+        Args.fine_tune = False
+
     if Args.useDemo == 'True':
         Args.use_demo = True
+    else:
+        Args.use_demo = False
 
     if Args.method == 'test':
         if Args.weights is None:
@@ -82,7 +81,7 @@ def get_network(arguments):
     if arguments.method == 'train':
         return train_net(arguments.gpu_id)
     else:
-        return test_net(arguments.gpu_id)
+        return test_net(arguments.gpu_id,trainable=False)
         # print "Loading model from .meta ...."
         # return None # hxd: when testting,we needn't to reload the model,using .meta file to restore the graph
 
