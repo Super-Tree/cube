@@ -202,7 +202,7 @@ class CubicNet_Train(object):
                 cubic_car_cls_prec = one_hist[1, 1] / (one_hist[1, 1] + one_hist[0, 1]+1e-5)
                 cubic_car_cls_recall = one_hist[1, 1] / (one_hist[1, 1] + one_hist[1, 0]+1e-5)
 
-                if iter % 4902==0 and cfg.TRAIN.DEBUG_TIMELINE:
+                if iter % 102==0 and cfg.TRAIN.DEBUG_TIMELINE:
                     #chrome://tracing
                     trace = timeline.Timeline(step_stats=run_metadata.step_stats)
                     trace_file = open(cfg.LOG_DIR+'/'+str(long(time.time() * 1000)) + '-train-timeline.ctf.json', 'w')
@@ -226,8 +226,8 @@ class CubicNet_Train(object):
                 if DEBUG:
                     scan = blobs['lidar3d_data']
                     gt_box3d = blobs['gt_boxes_3d'][:, (6, 0, 1, 2, 3, 4, 5)]
-                    gt_box3d = np.hstack((gt_box3d,np.ones([gt_box3d.shape[0],2])*4))
-                    pred_boxes = np.hstack((rpn_rois_[1],cubic_result.reshape(-1,1)*2))
+                    gt_box3d = np.hstack((gt_box3d,np.ones([gt_box3d.shape[0],2])*2))
+                    pred_boxes = np.hstack((rpn_rois_[1],cubic_result.reshape(-1,1)))
                     bbox = np.vstack((pred_boxes, gt_box3d))
                     pcd_vispy(scan, bbox)
                     # draw_3dPoints_box(lidar=scan, Boxex3D=bbox)
