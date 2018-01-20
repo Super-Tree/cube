@@ -23,7 +23,7 @@ def parse_args():
     parser.add_argument('--method', dest='method',help=' train or test',choices=['train', 'test'],
                         default="train", type=str)
     parser.add_argument('--weights', dest='weights',help='which network weights',
-                        default=None, type=str)
+                        default='/home/hexindong/ws_dl/pyProj/cubic-local/MODEL_weights/CUBIC_2/weights/CubicNet_iter_85000.ckpt', type=str)
     parser.add_argument('--epoch_iters', dest='epoch_iters',help='number of iterations to train',
                         default=18, type=int)
     parser.add_argument('--imdb_type', dest='imdb_type',help='dataset to train on(sti/kitti)', choices=['kitti', 'sti'],

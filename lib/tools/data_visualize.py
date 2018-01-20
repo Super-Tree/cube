@@ -34,7 +34,6 @@ def lidar_3d_to_corners(pts_3D):
 
     return corners
 
-
 #  using mayavi
 def draw_3dPoints_box(lidar=None, Boxex3D=None, is_grid=True, fig=None, draw_axis=True):
     import mayavi.mlab as mlab  # 3d point
@@ -120,7 +119,6 @@ def draw_3dPoints_box(lidar=None, Boxex3D=None, is_grid=True, fig=None, draw_axi
 
     mlab.show()
 
-
 def show_rpn_tf(img, gt_bv_box, anchors, box_pred=None):
     bv_data = tf.reshape(img[:, :, :, 8], (601, 601, 1))
     bv_data = scales_to_255(bv_data, 0, 3, tf.float32)
@@ -131,7 +129,6 @@ def show_rpn_tf(img, gt_bv_box, anchors, box_pred=None):
         return tf.py_func(show_bbox, [bv_img, gt_bv_box, anchors, box_pred], tf.float32)
 
     return tf.py_func(show_bbox, [bv_img, gt_bv_box, anchors], tf.float32)
-
 
 def show_bbox(bv_image, bv_gt, anchors, bv_box_pred=None):
     cnt = anchors.shape[0]
@@ -159,7 +156,6 @@ def show_bbox(bv_image, bv_gt, anchors, bv_box_pred=None):
     # filePath = "/media/disk4/deeplearningoflidar/he/CombiNet-he/output/"
     # cv2.imwrite(filePath+fileName,bv_image)
     return bv_image
-
 
 #  using vispy
 def pcd_vispy(scans=None, boxes=None, name=None, vis_size=(800, 600), now=True,test = False):
@@ -243,16 +239,15 @@ def pcd_vispy(scans=None, boxes=None, name=None, vis_size=(800, 600), now=True,t
 
     return canvas
 
-
 def pcd_show_now():
     vispy.app.run()
     vispy.app.quit()
 
-
 def vispy_init():
     import vispy
+    vispy.use('pyqt4')
+    # vispy.app.use_app()
     v = vispy.app.Canvas()
-
 
 def line_box(box,color=(0, 1, 0, 0.1)):
     p0 = np.array([box[1] - float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
@@ -269,7 +264,6 @@ def line_box(box,color=(0, 1, 0, 0.1)):
     lines = visuals.Line(pos=pos, connect='strip', width=1, color=color, method='gl')
 
     return lines
-
 
 def test_show_rpn_tf(img, box_pred=None):
     bv_data = tf.reshape(img[:, :, :, 8],(601, 601, 1))

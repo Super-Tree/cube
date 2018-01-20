@@ -93,4 +93,4 @@ __C.TEST.RPN_PRE_NMS_TOP_N = 3000
 # Number of top scoring boxes to keep after applying NMS to RPN proposals
 __C.TEST.RPN_POST_NMS_TOP_N = 50
 __C.TEST.TENSORBOARD = True
-__C.TEST.DEBUG_TIMELINE = True
+__C.TEST.DEBUG_TIMELINE = False

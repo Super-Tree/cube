@@ -4,12 +4,10 @@ from network.config import cfg
 from tensorflow.python.client import timeline
 import time
 from tools.timer import Timer
-import os
-import random
-import string
 import numpy as np
 from tools.data_visualize import pcd_vispy,vispy_init,test_show_rpn_tf
 
+from qt_vision.wiggly_bar import main
 VISION_DEBUG = True
 
 class CubicNet_Test(object):
@@ -40,7 +38,6 @@ class CubicNet_Test(object):
 
         cubic_cls_score = tf.reshape(self.net.get_output('cubic_cnn'), [-1, 2])
         rpn_3d = tf.reshape(self.net.get_output('rpn_rois')[1],[-1,8])
-
         vispy_init()  # TODO: Essential step(before sess.run) for using vispy beacuse of the bug of opengl or tensorflow
         timer = Timer()
         for idx in range(self.epoch):
