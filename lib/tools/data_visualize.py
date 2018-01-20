@@ -1,15 +1,10 @@
-# import mayavi.mlab as mlab  # 3d point
-import numpy as np
+
 import tensorflow as tf
 from tools.utils import scales_to_255
 import cv2
-import os
 import numpy as np
 import vispy
-import vispy.plot as vp
-import vispy.io as vpio
 from vispy.scene import visuals
-
 vispy.set_log_level('CRITICAL', match='-.-')
 
 def lidar_3d_to_corners(pts_3D):
@@ -42,6 +37,8 @@ def lidar_3d_to_corners(pts_3D):
 
 #  using mayavi
 def draw_3dPoints_box(lidar=None, Boxex3D=None, is_grid=True, fig=None, draw_axis=True):
+    import mayavi.mlab as mlab  # 3d point
+
     pxs = lidar[:, 0]
     pys = lidar[:, 1]
     pzs = lidar[:, 2]
@@ -165,7 +162,7 @@ def show_bbox(bv_image, bv_gt, anchors, bv_box_pred=None):
 
 
 #  using vispy
-def pcd_vispy(scans=None, boxes=None, name=None, vis_size=(800, 600), now=True):
+def pcd_vispy(scans=None, boxes=None, name=None, vis_size=(800, 600), now=True,test = False):
     pos = scans[:, :3]
     canvas = vispy.scene.SceneCanvas(title=name, keys='interactive', size=vis_size, show=True)
     vb = canvas.central_widget.add_view()
@@ -180,20 +177,31 @@ def pcd_vispy(scans=None, boxes=None, name=None, vis_size=(800, 600), now=True):
     scatter.set_data(pos, edge_width=0, face_color=(1, 1, 1, 1), size=0.01, scaling=True)
     vb.add(scatter)
 
+    if False:
+        fName='/home/hexindong/ws_dl/pyProj/cubic-local/data/training/image_2/000000.png'
+        img = cv2.imread(fName)
+        image = visuals.Image(data=img,method='subdivide')
+        image.size()
+        vb.add(image)
+
+    # *'auto': Automatically
+    # *'impostor' if the
+    # *'subdivide': ImageVisual is represented as a
+    # *'impostor': ImageVisual is represented as a
+
+
     if boxes is not None:
         boxes = boxes.reshape(-1, 9)
         gt_indice = np.where(boxes[:, -1] == 2)[0]
         gt_cnt = len(gt_indice)
         i = 0
         for box in boxes:
-            if box[-1] == 2:  #  gt boxes
+            radio = max(box[0] - 0.5, 0.005)*2.0
+            color = (0, radio, 0, 1)  # Green
+
+            if box[-1] == 4:  #  gt boxes
                 i = i + 1
                 vsp_box = visuals.Box(width=box[4],  depth=box[5],height=box[6], color=(0.6, 0.8, 0.0, 0.3))#edge_color='yellow')
-
-                text = visuals.Text(text='gt: ({}/{})'.format(i, gt_cnt), color='white', face='OpenSans', font_size=12,
-                                    pos=[box[1], box[2], box[3]],anchor_x='left', anchor_y='top', font_manager=None)
-                vb.add(text)
-
                 mesh_box = vsp_box.mesh.mesh_data
                 mesh_border_box = vsp_box.border.mesh_data
                 vertices = mesh_box.get_vertices()
@@ -202,15 +210,30 @@ def pcd_vispy(scans=None, boxes=None, name=None, vis_size=(800, 600), now=True):
                 mesh_border_box.set_vertices(vtcs)
                 mesh_box.set_vertices(vtcs)
                 vb.add(vsp_box)
+                if False:
+                    text = visuals.Text(text='gt: ({}/{})'.format(i, gt_cnt), color='white', face='OpenSans', font_size=12,
+                                        pos=[box[1], box[2], box[3]],anchor_x='left', anchor_y='top', font_manager=None)
+                    vb.add(text)
 
-            if box[-1] == 0:
-                vb.add(line_box(box,color='green'))
-            if box[-1] == 1:
+            if (box[-1]+box[-2]) == 0: # True negative cls rpn divided by cube
+                vb.add(line_box(box,color=color))
+            if (box[-1]+box[-2]) == 1: # False negative cls rpn divided by cube
                 vb.add(line_box(box,color='red'))
-    # vpio.write_png('name.png',)
+            if (box[-1]+box[-2]) == 2: # False positive cls rpn divided by cube
+                if test:
+                    vb.add(line_box(box, color='yellow'))
+                else:
+                    vb.add(line_box(box, color='blue'))
+            if (box[-1]+box[-2]) == 3: # True positive cls rpn divided by cube
+                vb.add(line_box(box,color='yellow'))
+
     if now:
         vispy.app.run()
         vispy.app.quit()
+
+    # import vispy.plot as vp
+    # import vispy.io as vpio
+    # vpio.write_png('name.png',)
 
     @canvas.connect
     def on_key_press(ev):
@@ -228,8 +251,8 @@ def pcd_show_now():
 
 def vispy_init():
     import vispy
-    # vispy.app.use_app('pyqt4')
     v = vispy.app.Canvas()
+
 
 def line_box(box,color=(0, 1, 0, 0.1)):
     p0 = np.array([box[1] - float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
@@ -246,3 +269,19 @@ def line_box(box,color=(0, 1, 0, 0.1)):
     lines = visuals.Line(pos=pos, connect='strip', width=1, color=color, method='gl')
 
     return lines
+
+
+def test_show_rpn_tf(img, box_pred=None):
+    bv_data = tf.reshape(img[:, :, :, 8],(601, 601, 1))
+    bv_data = scales_to_255(bv_data,0,3,tf.float32)
+    bv_img = tf.reshape(tf.stack([bv_data,bv_data,bv_data],3),(601,601,3))
+    return tf.py_func(test_show_bbox, [bv_img,box_pred], tf.float32)
+
+def test_show_bbox(bv_image, bv_box):
+    for i in range(bv_box.shape[0]):
+        a = bv_box[i, 0]*255
+        color_pre = (a, a, a)
+        cv2.rectangle(bv_image, (bv_box[i, 1], bv_box[i, 2]), (bv_box[i, 3], bv_box[i, 4]), color=color_pre)
+
+    return bv_image
+
