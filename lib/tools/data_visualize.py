@@ -5,7 +5,8 @@ import cv2
 import numpy as np
 import vispy
 from vispy.scene import visuals
-vispy.set_log_level('CRITICAL', match='-.-')
+
+# vispy.set_log_level('CRITICAL', match='-.-')
 
 def lidar_3d_to_corners(pts_3D):
     """
@@ -251,8 +252,8 @@ def pcd_show_now():
 
 def vispy_init():
     import vispy
+    vispy.app.use_app('pyqt4')
     v = vispy.app.Canvas()
-
 
 def line_box(box,color=(0, 1, 0, 0.1)):
     p0 = np.array([box[1] - float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])

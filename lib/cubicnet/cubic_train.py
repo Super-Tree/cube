@@ -15,7 +15,7 @@ from tensorflow.python.client import timeline
 from tensorflow.python import pywrap_tensorflow
 from tools.data_visualize import pcd_vispy,vispy_init
 
-DEBUG = False
+DEBUG = True
 
 class CubicNet_Train(object):
     def __init__(self, network, data_set, args):
