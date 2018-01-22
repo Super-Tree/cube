@@ -468,7 +468,7 @@ class dataset_test(object):  # read txt files one by one
         self._classes = ('__background__', 'Car')  # , 'Pedestrian', 'Cyclist')
         self.num_classes = len(self._classes)
         if arguments.use_demo:
-            self._data_path = osp.join(osp.dirname(__file__), '../../data', 'demo_0064')  # data path
+            self._data_path = osp.join(osp.dirname(__file__), '../../data', 'drive_0064')  # data path
         else:
             self._data_path = osp.join(osp.dirname(__file__), '../../data', 'testing')  # data path
         self._class_to_ind = dict(zip(self._classes, xrange(self.num_classes)))

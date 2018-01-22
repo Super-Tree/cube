@@ -57,7 +57,7 @@ def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes):
 
         if DEBUG:
             box_mv = [box[0], box[1] - box[1], box[2] - box[2], box[3] - box[3], cfg.ANCHOR[0], cfg.ANCHOR[1],
-                      cfg.ANCHOR[2], box[7]]
+                      cfg.ANCHOR[2], box[7],0]
             display_stack.append(pcd_vispy(cubic_feature.reshape(-1, 4), np.array(box_mv),now=False))
             # TODO: deal with multi-windows display
     if DEBUG:
@@ -151,5 +151,5 @@ if __name__ == '__main__':
 
         idx = input('Type a new index: ')
         blobs = dataset.get_minibatch(idx)
-        boxes = np.hstack((np.zeros([blobs['gt_boxes_3d'].shape[0], 1], dtype=np.float32), blobs['gt_boxes_3d']))
+        boxes = np.hstack((np.zeros([blobs['gt_boxes_3d'].shape[0], 1], dtype=np.float32), blobs['gt_boxes_3d'],np.zeros([blobs['gt_boxes_3d'].shape[0], 1], dtype=np.float32),))
         cubic_rpn_grid_pyfc(blobs['lidar3d_data'], boxes)

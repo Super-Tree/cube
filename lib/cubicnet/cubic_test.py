@@ -6,7 +6,6 @@ import time
 from tools.timer import Timer
 import numpy as np
 from tools.data_visualize import pcd_vispy,vispy_init,test_show_rpn_tf
-
 from qt_vision.wiggly_bar import main
 VISION_DEBUG = True
 

@@ -5,6 +5,8 @@ import cv2
 import numpy as np
 import vispy
 from vispy.scene import visuals
+from vispy import app, scene, io
+
 vispy.set_log_level('CRITICAL', match='-.-')
 
 def lidar_3d_to_corners(pts_3D):
@@ -158,7 +160,7 @@ def show_bbox(bv_image, bv_gt, anchors, bv_box_pred=None):
     return bv_image
 
 #  using vispy
-def pcd_vispy(scans=None, boxes=None, name=None, vis_size=(800, 600), now=True,test = False):
+def pcd_vispy(scans=None, boxes=None, name=None, vis_size=(800, 600), now=True,test=False,img=None):
     pos = scans[:, :3]
     canvas = vispy.scene.SceneCanvas(title=name, keys='interactive', size=vis_size, show=True)
     vb = canvas.central_widget.add_view()
@@ -179,12 +181,6 @@ def pcd_vispy(scans=None, boxes=None, name=None, vis_size=(800, 600), now=True,t
         image = visuals.Image(data=img,method='subdivide')
         image.size()
         vb.add(image)
-
-    # *'auto': Automatically
-    # *'impostor' if the
-    # *'subdivide': ImageVisual is represented as a
-    # *'impostor': ImageVisual is represented as a
-
 
     if boxes is not None:
         boxes = boxes.reshape(-1, 9)
@@ -248,6 +244,7 @@ def vispy_init():
     vispy.use('pyqt4')
     # vispy.app.use_app()
     v = vispy.app.Canvas()
+
 
 def line_box(box,color=(0, 1, 0, 0.1)):
     p0 = np.array([box[1] - float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
