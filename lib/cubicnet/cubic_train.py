@@ -229,7 +229,7 @@ class CubicNet_Train(object):
                     gt_box3d = np.hstack((gt_box3d,np.ones([gt_box3d.shape[0],2])*4))
                     pred_boxes = np.hstack((rpn_rois_[1],cubic_result.reshape(-1,1)*2))
                     bbox = np.vstack((pred_boxes, gt_box3d))
-                    pcd_vispy(scan, bbox)
+                    pcd_vispy(scan, boxes=bbox,name='CubicNet training')
                     # draw_3dPoints_box(lidar=scan, Boxex3D=bbox)
             random.shuffle(training_series)  # shuffle the training series
             if cfg.TRAIN.USE_VALID:

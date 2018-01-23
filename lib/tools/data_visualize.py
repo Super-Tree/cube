@@ -3,12 +3,143 @@ import tensorflow as tf
 from tools.utils import scales_to_255
 import cv2
 import numpy as np
+import random
+import string
 import vispy
+from network.config import cfg
 from vispy.scene import visuals
-from vispy import app, scene, io
+import vispy.io as vispy_file
+from vispy.gloo.util import _screenshot as screenshot
+from os.path import join as path_add
+import os
 
 vispy.set_log_level('CRITICAL', match='-.-')
+random_folder = ''.join(random.sample(string.ascii_letters, 4))
+folderName = path_add(cfg.TEST_RESULT,random_folder)
+os.makedirs(folderName)
 
+def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800, 600),save_img=False,now=True,no_gt=False):
+    canvas = vispy.scene.SceneCanvas(title=name, keys='interactive', size=vis_size, show=True)
+    grid = canvas.central_widget.add_grid()
+    vb = grid.add_view(row=0, col=0, row_span=2)
+    vb_img = grid.add_view(row=1, col=0)
+
+    pos = scans[:, :3]
+    scatter = visuals.Markers()
+    scatter.set_gl_state('translucent', depth_test=False)
+    scatter.set_data(pos, edge_width=0, face_color=(1, 1, 1, 1), size=0.01, scaling=True)
+
+    vb.camera = 'turntable'
+    vb.camera.elevation = 19.0
+    vb.camera.center = (3.9, 3.0, 7.1)
+    vb.camera.azimuth = -90.0
+    vb.camera.scale_factor = 48
+    vb.add(scatter)
+
+    if img is not None:
+        image = visuals.Image(data=img,method='auto')
+        vb_img.camera = 'turntable'
+        vb_img.camera.elevation =-90.0
+        vb_img.camera.center = (2100, -380, -500)
+        vb_img.camera.azimuth =0.0
+        vb_img.camera.scale_factor = 1500
+        vb_img.add(image)
+
+    if boxes is not None:
+        boxes = boxes.reshape(-1, 9)
+        gt_indice = np.where(boxes[:, -1] == 2)[0]
+        gt_cnt = len(gt_indice)
+        i = 0
+        for box in boxes:
+            radio = max(box[0] - 0.5, 0.005)*2.0
+            color = (0, radio, 0, 1)  # Green
+
+            if box[-1] == 4:  #  gt boxes
+                i = i + 1
+                vsp_box = visuals.Box(width=box[4],  depth=box[5],height=box[6], color=(0.6, 0.8, 0.0, 0.3))#edge_color='yellow')
+                mesh_box = vsp_box.mesh.mesh_data
+                mesh_border_box = vsp_box.border.mesh_data
+                vertices = mesh_box.get_vertices()
+                center = np.array([box[1], box[2], box[3]], dtype=np.float32)
+                vtcs = np.add(vertices, center)
+                mesh_border_box.set_vertices(vtcs)
+                mesh_box.set_vertices(vtcs)
+                vb.add(vsp_box)
+                if False:
+                    text = visuals.Text(text='gt: ({}/{})'.format(i, gt_cnt), color='white', face='OpenSans', font_size=12,
+                                        pos=[box[1], box[2], box[3]],anchor_x='left', anchor_y='top', font_manager=None)
+                    vb.add(text)
+
+            if (box[-1]+box[-2]) == 0: # True negative cls rpn divided by cube
+                vb.add(line_box(box,color=color))
+            if (box[-1]+box[-2]) == 1: # False negative cls rpn divided by cube
+                vb.add(line_box(box,color='red'))
+            if (box[-1]+box[-2]) == 2: # False positive cls rpn divided by cube
+                if no_gt:
+                    vb.add(line_box(box, color='yellow'))
+                else:
+                    vb.add(line_box(box, color='blue'))
+            if (box[-1]+box[-2]) == 3: # True positive cls rpn divided by cube
+                vb.add(line_box(box,color='yellow'))
+
+    if now:
+        vispy.app.run()
+        vispy.app.quit()
+
+    if save_img:
+        fileName = path_add(folderName,str(index).zfill(6)+'.jpg')
+        res = screenshot(alpha=False)
+        vispy_file.write_png(fileName,res)
+
+    @canvas.connect
+    def on_key_press(ev):
+        if ev.key.name in '+=':
+            a = vb.camera.get_state()
+        print(a)
+
+    return canvas
+
+def pcd_show_now():
+    vispy.app.run()
+    vispy.app.quit()
+
+def vispy_init():
+    import vispy
+    vispy.use('pyqt4')
+    # vispy.app.use_app()
+    v = vispy.app.Canvas()
+
+def line_box(box,color=(0, 1, 0, 0.1)):
+    p0 = np.array([box[1] - float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
+    p1 = np.array([box[1] - float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
+    p2 = np.array([box[1] + float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
+    p3 = np.array([box[1] + float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
+
+    p4 = np.array([box[1] - float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] + float(box[6]) / 2.0, ])
+    p5 = np.array([box[1] - float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, box[3] + float(box[6]) / 2.0, ])
+    p6 = np.array([box[1] + float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, box[3] + float(box[6]) / 2.0, ])
+    p7 = np.array([box[1] + float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] + float(box[6]) / 2.0, ])
+
+    pos = np.vstack((p0,p1,p2,p3,p0,p4,p5,p6,p7,p4,p5,p1,p2,p6,p7,p3))
+    lines = visuals.Line(pos=pos, connect='strip', width=1, color=color, method='gl')
+
+    return lines
+
+def test_show_rpn_tf(img, box_pred=None):
+    bv_data = tf.reshape(img[:, :, :, 8],(601, 601, 1))
+    bv_data = scales_to_255(bv_data,0,3,tf.float32)
+    bv_img = tf.reshape(tf.stack([bv_data,bv_data,bv_data],3),(601,601,3))
+    return tf.py_func(test_show_bbox, [bv_img,box_pred], tf.float32)
+
+def test_show_bbox(bv_image, bv_box):
+    for i in range(bv_box.shape[0]):
+        a = bv_box[i, 0]*255
+        color_pre = (a, a, a)
+        cv2.rectangle(bv_image, (bv_box[i, 1], bv_box[i, 2]), (bv_box[i, 3], bv_box[i, 4]), color=color_pre)
+
+    return bv_image
+
+#  using mayavi
 def lidar_3d_to_corners(pts_3D):
     """
     convert pts_3D_lidar (x, y, z, l, w, h) to
@@ -36,7 +167,6 @@ def lidar_3d_to_corners(pts_3D):
 
     return corners
 
-#  using mayavi
 def draw_3dPoints_box(lidar=None, Boxex3D=None, is_grid=True, fig=None, draw_axis=True):
     import mayavi.mlab as mlab  # 3d point
 
@@ -158,121 +288,3 @@ def show_bbox(bv_image, bv_gt, anchors, bv_box_pred=None):
     # filePath = "/media/disk4/deeplearningoflidar/he/CombiNet-he/output/"
     # cv2.imwrite(filePath+fileName,bv_image)
     return bv_image
-
-#  using vispy
-def pcd_vispy(scans=None, boxes=None, name=None, vis_size=(800, 600), now=True,test=False,img=None):
-    pos = scans[:, :3]
-    canvas = vispy.scene.SceneCanvas(title=name, keys='interactive', size=vis_size, show=True)
-    vb = canvas.central_widget.add_view()
-    vb.camera = 'turntable'
-    vb.camera.elevation = 19.0
-    vb.camera.center = (3.9, 3.0, 7.1)
-    vb.camera.azimuth = -90.0
-    vb.camera.scale_factor = 48
-
-    scatter = visuals.Markers()
-    scatter.set_gl_state('translucent', depth_test=False)
-    scatter.set_data(pos, edge_width=0, face_color=(1, 1, 1, 1), size=0.01, scaling=True)
-    vb.add(scatter)
-
-    if False:
-        fName='/home/hexindong/ws_dl/pyProj/cubic-local/data/training/image_2/000000.png'
-        img = cv2.imread(fName)
-        image = visuals.Image(data=img,method='subdivide')
-        image.size()
-        vb.add(image)
-
-    if boxes is not None:
-        boxes = boxes.reshape(-1, 9)
-        gt_indice = np.where(boxes[:, -1] == 2)[0]
-        gt_cnt = len(gt_indice)
-        i = 0
-        for box in boxes:
-            radio = max(box[0] - 0.5, 0.005)*2.0
-            color = (0, radio, 0, 1)  # Green
-
-            if box[-1] == 4:  #  gt boxes
-                i = i + 1
-                vsp_box = visuals.Box(width=box[4],  depth=box[5],height=box[6], color=(0.6, 0.8, 0.0, 0.3))#edge_color='yellow')
-                mesh_box = vsp_box.mesh.mesh_data
-                mesh_border_box = vsp_box.border.mesh_data
-                vertices = mesh_box.get_vertices()
-                center = np.array([box[1], box[2], box[3]], dtype=np.float32)
-                vtcs = np.add(vertices, center)
-                mesh_border_box.set_vertices(vtcs)
-                mesh_box.set_vertices(vtcs)
-                vb.add(vsp_box)
-                if False:
-                    text = visuals.Text(text='gt: ({}/{})'.format(i, gt_cnt), color='white', face='OpenSans', font_size=12,
-                                        pos=[box[1], box[2], box[3]],anchor_x='left', anchor_y='top', font_manager=None)
-                    vb.add(text)
-
-            if (box[-1]+box[-2]) == 0: # True negative cls rpn divided by cube
-                vb.add(line_box(box,color=color))
-            if (box[-1]+box[-2]) == 1: # False negative cls rpn divided by cube
-                vb.add(line_box(box,color='red'))
-            if (box[-1]+box[-2]) == 2: # False positive cls rpn divided by cube
-                if test:
-                    vb.add(line_box(box, color='yellow'))
-                else:
-                    vb.add(line_box(box, color='blue'))
-            if (box[-1]+box[-2]) == 3: # True positive cls rpn divided by cube
-                vb.add(line_box(box,color='yellow'))
-
-    if now:
-        vispy.app.run()
-        vispy.app.quit()
-
-    # import vispy.plot as vp
-    # import vispy.io as vpio
-    # vpio.write_png('name.png',)
-
-    @canvas.connect
-    def on_key_press(ev):
-        if ev.key.name in '+=':
-            a = vb.camera.get_state()
-        print(a)
-
-    return canvas
-
-def pcd_show_now():
-    vispy.app.run()
-    vispy.app.quit()
-
-def vispy_init():
-    import vispy
-    vispy.use('pyqt4')
-    # vispy.app.use_app()
-    v = vispy.app.Canvas()
-
-
-def line_box(box,color=(0, 1, 0, 0.1)):
-    p0 = np.array([box[1] - float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
-    p1 = np.array([box[1] - float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
-    p2 = np.array([box[1] + float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
-    p3 = np.array([box[1] + float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
-
-    p4 = np.array([box[1] - float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] + float(box[6]) / 2.0, ])
-    p5 = np.array([box[1] - float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, box[3] + float(box[6]) / 2.0, ])
-    p6 = np.array([box[1] + float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, box[3] + float(box[6]) / 2.0, ])
-    p7 = np.array([box[1] + float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] + float(box[6]) / 2.0, ])
-
-    pos = np.vstack((p0,p1,p2,p3,p0,p4,p5,p6,p7,p4,p5,p1,p2,p6,p7,p3))
-    lines = visuals.Line(pos=pos, connect='strip', width=1, color=color, method='gl')
-
-    return lines
-
-def test_show_rpn_tf(img, box_pred=None):
-    bv_data = tf.reshape(img[:, :, :, 8],(601, 601, 1))
-    bv_data = scales_to_255(bv_data,0,3,tf.float32)
-    bv_img = tf.reshape(tf.stack([bv_data,bv_data,bv_data],3),(601,601,3))
-    return tf.py_func(test_show_bbox, [bv_img,box_pred], tf.float32)
-
-def test_show_bbox(bv_image, bv_box):
-    for i in range(bv_box.shape[0]):
-        a = bv_box[i, 0]*255
-        color_pre = (a, a, a)
-        cv2.rectangle(bv_image, (bv_box[i, 1], bv_box[i, 2]), (bv_box[i, 3], bv_box[i, 4]), color=color_pre)
-
-    return bv_image
-

@@ -15,6 +15,7 @@ import scipy.sparse
 from tools.transform import camera_to_lidar_cnr, computeCorners3D, lidar_3d_to_bv, lidar_cnr_to_3d, my_conner2bvbox
 from network.config import cfg
 import socket
+import cv2
 
 
 class dataset_train(object):  # read txt files one by one
@@ -485,8 +486,20 @@ class dataset_test(object):  # read txt files one by one
         for i in xrange(self.input_num):
             roidb[i]['lidar3d_path'] = self.lidar3d_path_at(indice(i, 'test_index'))
             roidb[i]['lidar_bv_path'] = self.lidar_bv_path_at(indice(i, 'test_index'))
+            roidb[i]['image_path'] = self.image_path_at(indice(i, 'test_index'))
             roidb[i]['calib'] = self.get_calib(indice(i, 'test_index'))
         return roidb
+
+    def image_path_at(self, index):
+        """
+        Construct an image path from the image's "index" identifier.
+        """
+        # set the prefix
+        prefix = 'image_2'
+        # image_path = '$Faster-RCNN_TF/data/KITTI/object/training/image_2/000000.png'
+        image_path = os.path.join(self._data_path, prefix, str(index).zfill(6) + '.png')
+        assert os.path.exists(image_path), 'Path does not exist: {}'.format(image_path)
+        return image_path
 
     def lidar3d_path_at(self, index):
         """
@@ -554,11 +567,13 @@ class dataset_test(object):  # read txt files one by one
         lidar_bv_blob = lidar_bv.reshape((1, lidar_bv.shape[0], lidar_bv.shape[1], lidar_bv.shape[2]))
         lidar3d = np.fromfile(dataset[idx]['lidar3d_path'], dtype=np.float32)
         lidar3d_blob = lidar3d.reshape((-1,4))
+        img = cv2.imread(dataset[idx]['image_path'])
 
         blobs = dict({'lidar_bv_data': lidar_bv_blob,
                       'lidar3d_data': lidar3d_blob,
                       'calib': dataset[idx]['calib'],
-                      'im_info': np.array([[lidar_bv_blob.shape[1], lidar_bv_blob.shape[2], im_scales[0]]],dtype=np.float32)
+                      'im_info': np.array([[lidar_bv_blob.shape[1], lidar_bv_blob.shape[2], im_scales[0]]],dtype=np.float32),
+                      'image_data': img
                       })
 
         return blobs

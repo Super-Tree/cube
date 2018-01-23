@@ -66,8 +66,9 @@ class CubicNet_Test(object):
 
             if VISION_DEBUG:
                 scan = blobs['lidar3d_data']
+                img = blobs['image_data']
                 pred_boxes = np.hstack((rpn_3d_, cubic_result.reshape(-1, 1)*2))
-                pcd_vispy(scan, pred_boxes,test=True)
+                pcd_vispy(scan,img, pred_boxes,no_gt=True,index=idx,save_img=False,name='CubicNet testing')
 
             if idx % 1 == 0 and cfg.TEST.TENSORBOARD:
                 test_writer.add_summary(summary, idx)
