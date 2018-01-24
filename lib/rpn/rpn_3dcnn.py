@@ -1,4 +1,4 @@
-import os
+
 import numpy as np
 import tensorflow as tf
 from tools.data_visualize import pcd_vispy,pcd_show_now
@@ -20,7 +20,7 @@ def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes):
 
     if DEBUG:
         print 'Start vispy ...'
-        display_stack = [pcd_vispy(lidarPoints, boxes=rpnBoxes,now=False)]
+        display_stack = [pcd_vispy(lidarPoints, boxes=rpnBoxes,visible=False)]
 
     res = []
     for box in rpnBoxes:
@@ -58,7 +58,7 @@ def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes):
         if DEBUG:
             box_mv = [box[0], box[1] - box[1], box[2] - box[2], box[3] - box[3], cfg.ANCHOR[0], cfg.ANCHOR[1],
                       cfg.ANCHOR[2], box[7],0]
-            display_stack.append(pcd_vispy(cubic_feature.reshape(-1, 4), boxes=np.array(box_mv),now=False))
+            display_stack.append(pcd_vispy(cubic_feature.reshape(-1, 4), boxes=np.array(box_mv),visible=False))
             # TODO: deal with multi-windows display
     if DEBUG:
         pcd_show_now()
@@ -109,37 +109,18 @@ class cubic(object):
         dense_out_1 = self.dense_1.apply(conv3d_flatten)
         dense_bn_1 = self.bn_4.apply(dense_out_1)
         res = self.dense_2.apply(dense_bn_1)
-        res_stack = res
 
-        return res#,tf.convert_to_tensor(res_stack, dtype=tf.float32)
-
-    def net_forward2(self, conv3d_input):
-        conv3d_input = tf.reshape(conv3d_input, cubic_size)
-        out_conv3d_1 = self.conv3d_1.apply(conv3d_input)
-        out_conv3d_2 = self.conv3d_2.apply(out_conv3d_1)
-        out_conv3d_3 = self.conv3d_3.apply(out_conv3d_2)
-        out_conv3d_4 = self.conv3d_4.apply(out_conv3d_3)
-
-        mid_shape = tf.shape(out_conv3d_4)
-        res = out_conv3d_4
-        return res
+        return res  #,tf.convert_to_tensor(res_stack, dtype=tf.float32)
 
     def apply2(self, inputs):
-        input_shape = tf.shape(inputs)
-        i = tf.constant(0)
-        res_stack = []
+        inputs = tf.reshape(inputs, cubic_size)
+        out_conv3d_1 = self.conv3d_1.apply(inputs)
+        out_conv3d_2 = self.conv3d_2.apply(out_conv3d_1)
+        out_conv3d_3 = self.conv3d_3.apply(out_conv3d_2)
 
-        def cond(x, y):
-            return tf.less(x, input_shape[0])
-
-        def body(x, cubic_stack):
-            res = self.net_forward(cubic_stack[x])
-            res_stack.append(res)
-            return x + 1, cubic_stack
-
-        cnt, point_stack = tf.while_loop(cond, body, [i, inputs])
-
-        return tf.convert_to_tensor(res_stack, dtype=tf.float32)
+        mid_shape = tf.shape(out_conv3d_3)
+        res = out_conv3d_3
+        return res
 
 
 if __name__ == '__main__':

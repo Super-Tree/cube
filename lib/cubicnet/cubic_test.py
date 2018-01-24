@@ -2,11 +2,10 @@
 import tensorflow as tf
 from network.config import cfg
 from tensorflow.python.client import timeline
-import time
 from tools.timer import Timer
 import numpy as np
 from tools.data_visualize import pcd_vispy,vispy_init,test_show_rpn_tf
-from qt_vision.wiggly_bar import main
+
 VISION_DEBUG = True
 
 class CubicNet_Test(object):
@@ -55,25 +54,23 @@ class CubicNet_Test(object):
             timer.toc()
             cubic_result = cubic_cls_score_.argmax(axis=1)
 
-            if cfg.TEST.DEBUG_TIMELINE:
+            if idx % 3 ==0 and cfg.TEST.DEBUG_TIMELINE:
                 # chrome://tracing
                 trace = timeline.Timeline(step_stats=run_metadata.step_stats)
-                trace_file = open(cfg.LOG_DIR + '/' + str(long(time.time() * 1000)) + '-test-timeline.ctf.json', 'w')
+                trace_file = open(cfg.LOG_DIR + '/' +'testing-step-'+ str(idx).zfill(7) + '.ctf.json', 'w')
                 trace_file.write(trace.generate_chrome_trace_format(show_memory=False))
                 trace_file.close()
             if idx % cfg.TEST.ITER_DISPLAY == 0:
+                pass
                 print 'Test: %06d/%06d  speed: %.4f s / iter' % (idx+1, self.epoch, timer.average_time)
-
             if VISION_DEBUG:
                 scan = blobs['lidar3d_data']
                 img = blobs['image_data']
                 pred_boxes = np.hstack((rpn_3d_, cubic_result.reshape(-1, 1)*2))
-                pcd_vispy(scan,img, pred_boxes,no_gt=True,index=idx,save_img=False,name='CubicNet testing')
-
+                pcd_vispy(scan,img, pred_boxes,no_gt=True,index=idx,save_img=cfg.TEST.SAVE_IMAGE,visible=False,name='CubicNet testing')
             if idx % 1 == 0 and cfg.TEST.TENSORBOARD:
                 test_writer.add_summary(summary, idx)
                 pass
-
         print 'Testing process has done, happy every day !'
 
 

@@ -1,11 +1,9 @@
 # coding=utf-8
 from tools.data_visualize import show_rpn_tf
 
-import time
+import random
 import os
 import math
-import random
-import string
 import numpy as np
 import tensorflow as tf
 from tools.timer import Timer
@@ -23,7 +21,7 @@ class CubicNet_Train(object):
         self.net = network
         self.dataset = data_set
         self.args = args
-        self.random_folder = ''.join(random.sample(string.ascii_letters, 4))
+        self.random_folder = cfg.RANDOM_STR
         self.epoch = self.dataset.training_rois_length
         self.val_epoch = self.dataset.validing_rois_length
 
@@ -202,21 +200,20 @@ class CubicNet_Train(object):
                 cubic_car_cls_prec = one_hist[1, 1] / (one_hist[1, 1] + one_hist[0, 1]+1e-5)
                 cubic_car_cls_recall = one_hist[1, 1] / (one_hist[1, 1] + one_hist[1, 0]+1e-5)
 
-                if iter % 4902==0 and cfg.TRAIN.DEBUG_TIMELINE:
+                if iter % 1000==0 and cfg.TRAIN.DEBUG_TIMELINE:
                     #chrome://tracing
                     trace = timeline.Timeline(step_stats=run_metadata.step_stats)
-                    trace_file = open(cfg.LOG_DIR+'/'+str(long(time.time() * 1000)) + '-train-timeline.ctf.json', 'w')
+                    trace_file = open(cfg.LOG_DIR+'/' +'training-step-'+ str(iter).zfill(7) + '.ctf.json', 'w')
                     trace_file.write(trace.generate_chrome_trace_format(show_memory=False))
                     trace_file.close()
                 if iter % cfg.TRAIN.ITER_DISPLAY == 0:
+                    recall_RPN = 0.
                     print 'Iter: %d / %d, loss: %.3f, rpn_recall: %.3f,' % \
                           (iter, self.args.epoch_iters * self.epoch,loss_,recall_RPN / cfg.TRAIN.ITER_DISPLAY)
-                    recall_RPN = 0.
                     print 'Cubic classify precise: {:.3f}  recall: {:.3f}'.format(cubic_car_cls_prec, cubic_car_cls_recall)
                     print 'Speed: {:.3f}s / iter'.format(timer.average_time)
                     print 'divine: ', cubic_result
                     print 'labels: ', cubic_cls_labels_
-                    print '   '
                 if iter % 10 == 0 and cfg.TRAIN.TENSORBOARD:
                     train_writer.add_summary(merged_, iter)
                     pass
@@ -230,7 +227,7 @@ class CubicNet_Train(object):
                     pred_boxes = np.hstack((rpn_rois_[1],cubic_result.reshape(-1,1)*2))
                     bbox = np.vstack((pred_boxes, gt_box3d))
                     pcd_vispy(scan, boxes=bbox,name='CubicNet training')
-                    # draw_3dPoints_box(lidar=scan, Boxex3D=bbox)
+
             random.shuffle(training_series)  # shuffle the training series
             if cfg.TRAIN.USE_VALID:
                 with tf.name_scope('valid_cubic_' + str(epo_cnt + 1)):
@@ -268,8 +265,8 @@ class CubicNet_Train(object):
                             if not math.isnan(one_hist[1, 1] / (one_hist[1, 1] + one_hist[1, 0])):
                                 hist += one_hist
                         if cfg.TRAIN.VISUAL_VALID:
-                            print 'Valid step: {:d} , rpn recall = {:.3f}'.format(data_idx + 1,
-                                                                                  float(recalls_[1]) / recalls_[2])
+                            print 'Valid step: {:d}/{:d} , rpn recall = {:.3f}'\
+                                  .format(data_idx + 1,self.val_epoch,float(recalls_[1]) / recalls_[2])
                             print('    class bg precision = {:.3f}  recall = {:.3f}'.format(
                                 (one_hist[0, 0] / (one_hist[0, 0] + one_hist[1, 0])),
                                 (one_hist[0, 0] / (one_hist[0, 0] + one_hist[0, 1]))))
@@ -285,7 +282,8 @@ class CubicNet_Train(object):
                                                                epoch_cubic_recall: recall_total,
                                                                epoch_cubic_precise: precise_total})
                 train_writer.add_summary(valid_res, epo_cnt + 1)
-                print 'Validation of epoch_{}: rpn_recall {:.3f} cubic_precision = {:.3f}  cubic_recall = {:.3f}'.format(epo_cnt + 1,recall_rpn,precise_total,recall_total)
+                print 'Validation of epoch_{}: rpn_recall {:.3f} cubic_precision = {:.3f}  cubic_recall = {:.3f}'\
+                      .format(epo_cnt + 1,recall_rpn,precise_total,recall_total)
         self.snapshot(sess, iter, final=True)
 
 def network_training(network, data_set, args):
