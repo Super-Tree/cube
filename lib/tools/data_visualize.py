@@ -1,25 +1,20 @@
-
+import os
 import tensorflow as tf
 from tools.utils import scales_to_255
 import cv2
 import numpy as np
-import random
-import string
 import vispy
 from network.config import cfg
 from vispy.scene import visuals
 import vispy.io as vispy_file
-from vispy.gloo.util import _screenshot as screenshot
 from os.path import join as path_add
-import os
 
 vispy.set_log_level('CRITICAL', match='-.-')
-random_folder = ''.join(random.sample(string.ascii_letters, 4))
-folderName = path_add(cfg.TEST_RESULT,random_folder)
-os.makedirs(folderName)
+folder = path_add(cfg.TEST_RESULT, cfg.RANDOM_STR)
+os.makedirs(folder)
 
-def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800, 600),save_img=False,now=True,no_gt=False):
-    canvas = vispy.scene.SceneCanvas(title=name, keys='interactive', size=vis_size, show=True)
+def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800, 600),save_img=False,visible=True,no_gt=False):
+    canvas = vispy.scene.SceneCanvas(title=name, keys='interactive', size=vis_size)
     grid = canvas.central_widget.add_grid()
     vb = grid.add_view(row=0, col=0, row_span=2)
     vb_img = grid.add_view(row=1, col=0)
@@ -82,14 +77,14 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
             if (box[-1]+box[-2]) == 3: # True positive cls rpn divided by cube
                 vb.add(line_box(box,color='yellow'))
 
-    if now:
+    if visible:
         vispy.app.run()
         vispy.app.quit()
 
     if save_img:
-        fileName = path_add(folderName,str(index).zfill(6)+'.jpg')
-        res = screenshot(alpha=False)
-        vispy_file.write_png(fileName,res)
+        fileName = path_add(folder,str(index).zfill(6)+'.png')
+        res = canvas.render(bgcolor='black')[:,:,0:3]
+        vispy_file.write_png(fileName, res)
 
     @canvas.connect
     def on_key_press(ev):
