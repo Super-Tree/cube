@@ -88,7 +88,7 @@ __C.TEST = edict()
 __C.TEST.ITER_DISPLAY = 1
 __C.TEST.SAVE_IMAGE = True
 # NMS threshold used on RPN proposals
-__C.TEST.RPN_NMS_THRESH = 0.5
+__C.TEST.RPN_NMS_THRESH = 0.32
 
 # Number of top scoring boxes to keep before apply NMS to RPN proposals
 __C.TEST.RPN_PRE_NMS_TOP_N = 3000

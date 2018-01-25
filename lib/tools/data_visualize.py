@@ -14,7 +14,7 @@ folder = path_add(cfg.TEST_RESULT, cfg.RANDOM_STR)
 os.makedirs(folder)
 
 def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800, 600),save_img=False,visible=True,no_gt=False):
-    canvas = vispy.scene.SceneCanvas(title=name, keys='interactive', size=vis_size)
+    canvas = vispy.scene.SceneCanvas(title=name, keys='interactive', size=vis_size,show=visible)
     grid = canvas.central_widget.add_grid()
     vb = grid.add_view(row=0, col=0, row_span=2)
     vb_img = grid.add_view(row=1, col=0)
@@ -25,10 +25,10 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
     scatter.set_data(pos, edge_width=0, face_color=(1, 1, 1, 1), size=0.01, scaling=True)
 
     vb.camera = 'turntable'
-    vb.camera.elevation = 19.0
-    vb.camera.center = (3.9, 3.0, 7.1)
-    vb.camera.azimuth = -90.0
-    vb.camera.scale_factor = 48
+    vb.camera.elevation = 21.0
+    vb.camera.center = (6.5, -0.5, 9.0)
+    vb.camera.azimuth = -75.5
+    vb.camera.scale_factor = 32.7
     vb.add(scatter)
 
     if img is not None:
@@ -77,10 +77,6 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
             if (box[-1]+box[-2]) == 3: # True positive cls rpn divided by cube
                 vb.add(line_box(box,color='yellow'))
 
-    if visible:
-        vispy.app.run()
-        vispy.app.quit()
-
     if save_img:
         fileName = path_add(folder,str(index).zfill(6)+'.png')
         res = canvas.render(bgcolor='black')[:,:,0:3]
@@ -91,6 +87,10 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
         if ev.key.name in '+=':
             a = vb.camera.get_state()
         print(a)
+
+    if visible:
+        pass
+        vispy.app.run()
 
     return canvas
 
@@ -116,7 +116,7 @@ def line_box(box,color=(0, 1, 0, 0.1)):
     p7 = np.array([box[1] + float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] + float(box[6]) / 2.0, ])
 
     pos = np.vstack((p0,p1,p2,p3,p0,p4,p5,p6,p7,p4,p5,p1,p2,p6,p7,p3))
-    lines = visuals.Line(pos=pos, connect='strip', width=1, color=color, method='gl')
+    lines = visuals.Line(pos=pos, connect='strip', width=1, color=color, antialias=True,method='gl')
 
     return lines
 

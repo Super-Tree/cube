@@ -114,14 +114,12 @@ class CubicNet_Train(object):
             # tf.summary.scalar('rpn_cross_entropy', rpn_cross_entropy)
             # tf.summary.scalar('cubic_cross_entropy', cubic_cross_entropy)
             recall_RPN = 0.
-
             # bv_anchors = self.net.get_output('rpn_anchors_label')[2]
             # roi_bv = self.net.get_output('rpn_rois')[0]
             # data_bv = self.net.lidar_bv_data
             # data_gt = self.net.gt_boxes_bv
             # image_rpn = tf.reshape(show_rpn_tf(data_bv, data_gt, bv_anchors, roi_bv), (1, 601, 601, -1))
             # tf.summary.image('lidar_bv_test', image_rpn)
-
             glb_var = tf.global_variables()
             for i in range(len(glb_var)):
                 # print glb_var[i].name
@@ -146,7 +144,7 @@ class CubicNet_Train(object):
 
         sess.run(tf.global_variables_initializer())
         if self.args.fine_tune:
-            if True:
+            if False:
                 # #full graph restore
                 print 'Loading pre-trained model weights from {:s}'.format(self.args.weights)
                 self.net.load(self.args.weights, sess, self.saver, True)
@@ -163,16 +161,19 @@ class CubicNet_Train(object):
                         try:
                             var = tf.get_variable(key, trainable=False)
                             sess.run(var.assign(reader.get_tensor(key)))
-                            print "    Assign pretrain model " + key
+                            print "    Assign pretrain model: " + key
                         except ValueError:
-                            print "    ignore " + key
+                            print "    Ignore variable:" + key
+        trainable_var_for_chk=tf.trainable_variables()#tf.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
+        print trainable_var_for_chk
 
         timer = Timer()
         rpn_rois = self.net.get_output('rpn_rois')
         cubic_grid = self.net.get_output('cubic_grid')
         cubic_cnn= self.net.get_output('cubic_cnn')
-
-        vispy_init()  # TODO: Essential step(before sess.run) for using vispy beacuse of the bug of opengl or tensorflow
+        if DEBUG:
+            vispy_init()  # TODO: Essential step(before sess.run) for using vispy beacuse of the bug of opengl or tensorflow
+            pass
         training_series = range(self.epoch)  # self.epoch
         for epo_cnt in range(self.args.epoch_iters):
             for data_idx in training_series:  # DO NOT EDIT the "training_series",for the latter shuffle
@@ -189,11 +190,13 @@ class CubicNet_Train(object):
                     self.net.calib: blobs['calib']}
                 run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 run_metadata = tf.RunMetadata()
+
                 timer.tic()
                 cubic_cls_score_,cubic_cls_labels_,rpn_rois_,cubic_cnn_,cubic_grid_, loss_, merged_, _ = sess.run(
                     [cubic_cls_score,cubic_cls_labels,rpn_rois,cubic_cnn,cubic_grid,loss, merged, train_op],
                     feed_dict=feed_dict,options=run_options, run_metadata=run_metadata)
                 timer.toc()
+
                 recall_RPN = recall_RPN + rpn_rois_[2][0]
                 cubic_result = cubic_cls_score_.argmax(axis=1)
                 one_hist = fast_hist(cubic_cls_labels_, cubic_result)
@@ -227,7 +230,6 @@ class CubicNet_Train(object):
                     pred_boxes = np.hstack((rpn_rois_[1],cubic_result.reshape(-1,1)*2))
                     bbox = np.vstack((pred_boxes, gt_box3d))
                     pcd_vispy(scan, boxes=bbox,name='CubicNet training')
-
             random.shuffle(training_series)  # shuffle the training series
             if cfg.TRAIN.USE_VALID:
                 with tf.name_scope('valid_cubic_' + str(epo_cnt + 1)):
@@ -285,6 +287,7 @@ class CubicNet_Train(object):
                 print 'Validation of epoch_{}: rpn_recall {:.3f} cubic_precision = {:.3f}  cubic_recall = {:.3f}'\
                       .format(epo_cnt + 1,recall_rpn,precise_total,recall_total)
         self.snapshot(sess, iter, final=True)
+        print 'Training process has done, enjoy every day !'
 
 def network_training(network, data_set, args):
     net = CubicNet_Train(network, data_set, args)
