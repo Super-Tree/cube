@@ -31,14 +31,15 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
     vb.camera.scale_factor = 32.7
     vb.add(scatter)
 
-    if img is not None:
-        image = visuals.Image(data=img,method='auto')
-        vb_img.camera = 'turntable'
-        vb_img.camera.elevation =-90.0
-        vb_img.camera.center = (2100, -380, -500)
-        vb_img.camera.azimuth =0.0
-        vb_img.camera.scale_factor = 1500
-        vb_img.add(image)
+    if img is None:
+        img=np.zeros(shape=[1,1,3],dtype=np.float32)
+    image = visuals.Image(data=img, method='auto')
+    vb_img.camera = 'turntable'
+    vb_img.camera.elevation = -90.0
+    vb_img.camera.center = (2100, -380, -500)
+    vb_img.camera.azimuth = 0.0
+    vb_img.camera.scale_factor = 1500
+    vb_img.add(image)
 
     if boxes is not None:
         boxes = boxes.reshape(-1, 9)
