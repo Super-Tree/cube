@@ -13,7 +13,7 @@ from tensorflow.python.client import timeline
 from tensorflow.python import pywrap_tensorflow
 from tools.data_visualize import pcd_vispy,vispy_init
 
-DEBUG = True
+DEBUG = False
 
 class CubicNet_Train(object):
     def __init__(self, network, data_set, args):
@@ -144,7 +144,7 @@ class CubicNet_Train(object):
 
         sess.run(tf.global_variables_initializer())
         if self.args.fine_tune:
-            if False:
+            if True:
                 # #full graph restore
                 print 'Loading pre-trained model weights from {:s}'.format(self.args.weights)
                 self.net.load(self.args.weights, sess, self.saver, True)
