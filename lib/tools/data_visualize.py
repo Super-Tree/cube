@@ -13,6 +13,7 @@ vispy.set_log_level('CRITICAL', match='-.-')
 folder = path_add(cfg.TEST_RESULT, cfg.RANDOM_STR)
 os.makedirs(folder)
 
+#  using vispy ============================
 def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800, 600),save_img=False,visible=True,no_gt=False):
     canvas = vispy.scene.SceneCanvas(title=name, keys='interactive', size=vis_size,show=visible)
     grid = canvas.central_widget.add_grid()
@@ -120,22 +121,7 @@ def line_box(box,color=(0, 1, 0, 0.1)):
     lines = visuals.Line(pos=pos, connect='strip', width=1, color=color, antialias=True,method='gl')
 
     return lines
-
-def test_show_rpn_tf(img, box_pred=None):
-    bv_data = tf.reshape(img[:, :, :, 8],(601, 601, 1))
-    bv_data = scales_to_255(bv_data,0,3,tf.float32)
-    bv_img = tf.reshape(tf.stack([bv_data,bv_data,bv_data],3),(601,601,3))
-    return tf.py_func(test_show_bbox, [bv_img,box_pred], tf.float32)
-
-def test_show_bbox(bv_image, bv_box):
-    for i in range(bv_box.shape[0]):
-        a = bv_box[i, 0]*255
-        color_pre = (a, a, a)
-        cv2.rectangle(bv_image, (bv_box[i, 1], bv_box[i, 2]), (bv_box[i, 3], bv_box[i, 4]), color=color_pre)
-
-    return bv_image
-
-#  using mayavi
+#  using mayavi ===========================
 def lidar_3d_to_corners(pts_3D):
     """
     convert pts_3D_lidar (x, y, z, l, w, h) to
@@ -163,7 +149,7 @@ def lidar_3d_to_corners(pts_3D):
 
     return corners
 
-def draw_3dPoints_box(lidar=None, Boxex3D=None, is_grid=True, fig=None, draw_axis=True):
+def draw_3dPoints_box(lidar=None, Boxes3D=None, is_grid=True, fig=None, draw_axis=True):
     import mayavi.mlab as mlab  # 3d point
 
     pxs = lidar[:, 0]
@@ -283,4 +269,18 @@ def show_bbox(bv_image, bv_gt, anchors, bv_box_pred=None):
 
     # filePath = "/media/disk4/deeplearningoflidar/he/CombiNet-he/output/"
     # cv2.imwrite(filePath+fileName,bv_image)
+    return bv_image
+#  normal functions ======================
+def test_show_rpn_tf(img, box_pred=None):
+    bv_data = tf.reshape(img[:, :, :, 8],(601, 601, 1))
+    bv_data = scales_to_255(bv_data,0,3,tf.float32)
+    bv_img = tf.reshape(tf.stack([bv_data,bv_data,bv_data],3),(601,601,3))
+    return tf.py_func(test_show_bbox, [bv_img,box_pred], tf.float32)
+
+def test_show_bbox(bv_image, bv_box):
+    for i in range(bv_box.shape[0]):
+        a = bv_box[i, 0]*255
+        color_pre = (a, a, a)
+        cv2.rectangle(bv_image, (bv_box[i, 1], bv_box[i, 2]), (bv_box[i, 3], bv_box[i, 4]), color=color_pre)
+
     return bv_image

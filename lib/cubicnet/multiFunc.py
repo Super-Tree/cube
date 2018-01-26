@@ -892,6 +892,8 @@ if __name__ == '__main__':
             idx = input('Type a new index: ')
             data_show('/home/hexindong/ws_dl/pyProj/CubicNet-server/data/training/', idx)
 
+
+
             # for i in range(20):
             #     filepath = "/home/hexindong/ws_dl/pyProj/MV3D_TF/data/KITTI_ORIGIN/object/training/"
             #     filename=filepath+"velodyne/"+str(i).zfill(6) + ".bin"
