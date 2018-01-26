@@ -157,8 +157,7 @@ def _metadata_is_consistent(metadata):
             print('%s required' % f)
     checks.append((lambda m: all([k in m for k in required]),
                    'missing field'))
-    checks.append((lambda m: len(m['type']) == len(m['count']) ==
-                   len(m['fields']),
+    checks.append((lambda m: len(m['type']) == len(m['count']) ==len(m['fields']),
                    'length of type, count and fields must be equal'))
     checks.append((lambda m: m['height'] > 0,
                    'height must be greater than 0'))
@@ -748,10 +747,31 @@ class PointCloud(object):
 
 if __name__=='__main__':
     while True:
-        idx = 1
-        folder = '/home/hexindong/DATASET/stidataset/170818-1743-LM120/pcd'
-        name = os.path.join(folder, '170818-1743-LM120_' + str(400 + idx) + '.pcd')
-        pc = PointCloud.from_path(name)
-        pcd_vispy(pc.pc_data)
-        idx += 1
+        # idx = 1
+        # folder = '/home/hexindong/DATASET/stidataset/170818-1743-LM120/pcd'
+        # name = os.path.join(folder, '170818-1743-LM120_' + str(400 + idx) + '.pcd')
+        # pc = PointCloud.from_path(name)
+        # pcd_vispy(pc.pc_data)
+        # idx += 1
+
+        path = '/home/hexindong/ws_dl/pyProj/cubic-local/data/drive_0064/velodyne/'
+        fileindex = sorted(os.listdir(path))
+        save_path = '/home/hexindong/Videos/CubicNet-server/data/demo_0064/velodyne_pcd'
+        for idx,name in enumerate(fileindex):
+            pc_data = np.fromfile(os.path.join(path,name),dtype=np.float32).reshape(-1,4)
+            cnt = pc_data.shape[0]
+            metadata=dict({'count':[1,1,1,1],
+                           'data':'ascii',
+                           'fields':['x','y','z','intensity'],
+                           'height':1,
+                           'points':cnt,
+                           'size':[4,4,4,4],
+                           'type':['F','F','F','F'],
+                           'version':'0.7',
+                           'viewpoint':[0.0,0.0,0.0,1.0,0.0,0.0,0.0],
+                           'width':cnt,
+                           })
+
+            pointcloud = PointCloud(metadata, pc_data)
+            pointcloud.save(os.path.join(save_path,str(idx).zfill(6)+'.pcd'))
 
