@@ -11,9 +11,29 @@ from network.config import cfg
 from tools.utils import fast_hist
 from tensorflow.python.client import timeline
 from tensorflow.python import pywrap_tensorflow
-from tools.data_visualize import pcd_vispy,vispy_init
+from tools.data_visualize import pcd_vispy,vispy_init,pcd_vispy_client
+##================================================
+# from multiprocessing import Process,Queue
+# MSG_QUEUE = Queue(200)
+##================================================
+DEBUG = True
+class msg_qt(object):
+    def __init__(self,scans=None, img=None,queue=None, boxes=None, name=None,
+                 index=0, vis_size=(800, 600), save_img=False,visible=True, no_gt=False):
+        self.scans=scans,
+        self.img=img,
+        self.boxes=boxes,
+        self.name=name,
+        self.index=index,
+        self.vis_size=vis_size,
+        self.save_img=save_img,
+        self.visible=visible,
+        self.no_gt=no_gt,
+        self.queue=queue
 
-DEBUG = False
+    def check(self):
+        pass
+
 
 class CubicNet_Train(object):
     def __init__(self, network, data_set, args):
@@ -37,7 +57,8 @@ class CubicNet_Train(object):
             filename = os.path.join(output_dir, 'CombiNet_iter_{:d}_final'.format(iter) + '.ckpt')
             self.saver.save(sess, filename)
 
-    def modified_smooth_l1(self, sigma, bbox_pred, bbox_targets):
+    @staticmethod
+    def modified_smooth_l1(sigma, bbox_pred, bbox_targets):
         """
             ResultLoss = outside_weights * SmoothL1(inside_weights * (bbox_pred - bbox_targets))
             SmoothL1(x) = 0.5 * (sigma * x)^2,    if |x| < 1 / sigma^2
@@ -173,7 +194,10 @@ class CubicNet_Train(object):
         cubic_cnn= self.net.get_output('cubic_cnn')
         if DEBUG:
             vispy_init()  # TODO: Essential step(before sess.run) for using vispy beacuse of the bug of opengl or tensorflow
-            pass
+            # vision_qt = Process(target=pcd_vispy_client, args=(MSG_QUEUE,))
+            # vision_qt.start()
+            # print 'Process vision_qt started ...'
+
         training_series = range(self.epoch)  # self.epoch
         for epo_cnt in range(self.args.epoch_iters):
             for data_idx in training_series:  # DO NOT EDIT the "training_series",for the latter shuffle
@@ -229,6 +253,8 @@ class CubicNet_Train(object):
                     gt_box3d = np.hstack((gt_box3d,np.ones([gt_box3d.shape[0],2])*4))
                     pred_boxes = np.hstack((rpn_rois_[1],cubic_result.reshape(-1,1)*2))
                     bbox = np.vstack((pred_boxes, gt_box3d))
+                    # msg = msg_qt(scans=scan, boxes=bbox,name='CubicNet training')
+                    # MSG_QUEUE.put(msg)
                     pcd_vispy(scan, boxes=bbox,name='CubicNet training')
             random.shuffle(training_series)  # shuffle the training series
             if cfg.TRAIN.USE_VALID:

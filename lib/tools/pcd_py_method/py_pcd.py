@@ -309,9 +309,9 @@ def show_pcd(dataPath):
 
 
 if __name__=='__main__':
-    # save_path = '/home/hexindong/pcd_files'
-    # data_path = '/home/hexindong/bin_files'
-    # generate_pcd(data_path,save_path)
-
-    pcd_file_path ='/home/hexindong/DATASET/stidataset/170818-1743-LM120/pcd'
-    show_pcd(pcd_file_path)
+    save_path = '/home/hexindong/pcd_dile'
+    data_path = '/home/hexindong/bin_file'
+    generate_pcd(data_path,save_path)
+    print 'Convert the file done ! '
+    # pcd_file_path ='/home/hexindong/DATASET/stidataset/170818-1743-LM120/pcd'
+    # show_pcd(pcd_file_path)

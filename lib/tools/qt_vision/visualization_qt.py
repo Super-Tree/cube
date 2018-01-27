@@ -24,30 +24,7 @@ except ImportError:
 from PyQt4 import QtGui, QtCore
 
 PARAMETERS = [('rpn_cnt', 1, 100, 'int', 50),
-              ('font size', 6.0, 128.0, 'double', 24.0)]
-
-class Image(scene.SceneCanvas):
-
-    def __init__(self):
-        scene.SceneCanvas.__init__(self, keys=None)
-        self.size = 800, 600
-        self.unfreeze()
-        self.view = self.central_widget.add_view()
-        self.radius = 2.0
-        self.view.camera = 'turntable'
-
-        self.view.camera.elevation = 19.0
-        self.view.camera.center = (3.9, 3.0, 7.1)
-        self.view.camera.azimuth = -90.0
-        self.view.camera.scale_factor = 48
-        fName = '/home/hexindong/DATASET/kittidataset/KITTI/object/training/image_2/000169.png'
-        img = cv2.imread(fName)
-        image = visuals.Image(data=img,method='subdivide')
-        self.view.add(image)
-        self.freeze()
-
-    def set_data(self, n_levels, cmap):
-        pass
+             ]
 
 class Parameters(object):
     def __init__(self,parameters):
@@ -108,7 +85,6 @@ class ObjectWidget(QtGui.QWidget):
     def update_param(self, option):
         self.signal_objet_changed.emit()
 
-
 class MainWindow(QtGui.QMainWindow):
 
     def __init__(self):
@@ -124,24 +100,18 @@ class MainWindow(QtGui.QMainWindow):
         self.canvas.create_native()
         self.canvas.native.setParent(self)
 
-        self.Image = Image()
-        self.Image.create_native()
-        self.Image.native.setParent(self)
-
         self.props = ObjectWidget()
         splitter.addWidget(self.props)
         splitter.addWidget(self.canvas.native)
-        splitter.addWidget(self.Image.native)
 
         self.setCentralWidget(splitter)
         self.props.signal_objet_changed.connect(self.update_view)
         self.update_view()
 
     def update_view(self):
-        # banded, nbr_steps, cmap
-        self.canvas.set_data(self.props.nbr_steps.value(),
-                             self.props.combo.currentText())
-
+        self.canvas.reset_para(self.props.nbr_steps.value(),
+                               self.props.combo.currentText(),
+                               self.props.rpn_chk.checkState())
 
 class Canvas(scene.SceneCanvas):
 
@@ -164,11 +134,11 @@ class Canvas(scene.SceneCanvas):
         scatter.set_gl_state('translucent', depth_test=False)
         scatter.set_data(scans, edge_width=0, face_color=(1, 1, 1, 1), size=0.01, scaling=True)
         self.view.add(scatter)
-
         self.freeze()
 
-    def set_data(self, n_levels, cmap):
+    def reset_para(self, n_levels, cmap,visible):
         self.view.add(self.line_box([1,1,1,1,1,1,1,1,0]))
+        a =[]
         pass
         # self.iso.set_color(cmap)
         # cl = np.linspace(-self.radius, self.radius, n_levels + 2)[1:-1]
@@ -190,10 +160,13 @@ class Canvas(scene.SceneCanvas):
 
         return lines
 
-
-# -----------------------------------------------------------------------------
-if __name__ == '__main__':
+def client_run():
     appQt = QtGui.QApplication(sys.argv)
     win = MainWindow()
     win.show()
     appQt.exec_()
+# -----------------------------------------------------------------------------
+
+
+if __name__ == '__main__':
+    client_run()

@@ -14,6 +14,100 @@ folder = path_add(cfg.TEST_RESULT, cfg.RANDOM_STR)
 os.makedirs(folder)
 
 #  using vispy ============================
+class pcd_vispy_client(object):# TODO: TO BE RE-WRITE
+    def __init__(self,QUEUE,title=None, keys='interactive', size=(800,600)):
+        self.queue=QUEUE
+        canvas = vispy.scene.SceneCanvas(title=title, keys=keys, size=size, show=True)
+        grid = canvas.central_widget.add_grid()
+        self.vb = grid.add_view(row=0, col=0, row_span=2)
+        self.vb_img = grid.add_view(row=1, col=0)
+
+        self.vb.camera = 'turntable'
+        self.vb.camera.elevation = 21.0
+        self.vb.camera.center = (6.5, -0.5, 9.0)
+        self.vb.camera.azimuth = -75.5
+        self.vb.camera.scale_factor = 32.7
+
+        self.vb_img.camera = 'turntable'
+        self.vb_img.camera.elevation = -90.0
+        self.vb_img.camera.center = (2100, -380, -500)
+        self.vb_img.camera.azimuth = 0.0
+        self.vb_img.camera.scale_factor = 1500
+
+        @canvas.connect
+        def on_key_press(ev):
+            if ev.key.name in '+=':
+                a = vb.camera.get_state()
+            print(a)
+
+        self.input_data()
+
+        vispy.app.run()
+
+    def input_data(self,scans,img,boxes,index,save_img,no_gt):
+        pos = scans[:, :3]
+        scatter = visuals.Markers()
+        scatter.set_gl_state('translucent', depth_test=False)
+        scatter.set_data(pos, edge_width=0, face_color=(1, 1, 1, 1), size=0.01, scaling=True)
+        self.vb.add(scatter)
+
+        if img is None:
+            img=np.zeros(shape=[1,1,3],dtype=np.float32)
+        image = visuals.Image(data=img, method='auto')
+        self.vb_img.add(image)
+
+        if boxes is not None:
+            boxes = boxes.reshape(-1, 9)
+            gt_indice = np.where(boxes[:, -1] == 2)[0]
+            gt_cnt = len(gt_indice)
+            i = 0
+            for box in boxes:
+                radio = max(box[0] - 0.5, 0.005)*2.0
+                color = (0, radio, 0, 1)  # Green
+
+                if box[-1] == 4:  #  gt boxes
+                    i = i + 1
+                    vsp_box = visuals.Box(width=box[4],  depth=box[5],height=box[6], color=(0.6, 0.8, 0.0, 0.3))#edge_color='yellow')
+                    mesh_box = vsp_box.mesh.mesh_data
+                    mesh_border_box = vsp_box.border.mesh_data
+                    vertices = mesh_box.get_vertices()
+                    center = np.array([box[1], box[2], box[3]], dtype=np.float32)
+                    vtcs = np.add(vertices, center)
+                    mesh_border_box.set_vertices(vtcs)
+                    mesh_box.set_vertices(vtcs)
+                    vb.add(vsp_box)
+                    if False:
+                        text = visuals.Text(text='gt: ({}/{})'.format(i, gt_cnt), color='white', face='OpenSans', font_size=12,
+                                            pos=[box[1], box[2], box[3]],anchor_x='left', anchor_y='top', font_manager=None)
+                        vb.add(text)
+
+                if (box[-1]+box[-2]) == 0: # True negative cls rpn divided by cube
+                    vb.add(line_box(box,color=color))
+                if (box[-1]+box[-2]) == 1: # False negative cls rpn divided by cube
+                    vb.add(line_box(box,color='red'))
+                if (box[-1]+box[-2]) == 2: # False positive cls rpn divided by cube
+                    if no_gt:
+                        vb.add(line_box(box, color='yellow'))
+                    else:
+                        vb.add(line_box(box, color='blue'))
+                if (box[-1]+box[-2]) == 3: # True positive cls rpn divided by cube
+                    vb.add(line_box(box,color='yellow'))
+
+        if save_img:
+            fileName = path_add(folder,str(index).zfill(6)+'.png')
+            res = canvas.render(bgcolor='black')[:,:,0:3]
+            vispy_file.write_png(fileName, res)
+
+    def get_thread_data(self,QUEUE):
+        if not QUEUE.empty():
+            msg = QUEUE.get() # from class msg_qt(object) in file: cubic_train
+            scans =msg.scans
+            img=msg.img
+            boxes=msg.boxes
+            index=msg.index
+            save_img=msg.save_img
+            no_gt=msg.no_gt
+
 def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800, 600),save_img=False,visible=True,no_gt=False):
     canvas = vispy.scene.SceneCanvas(title=name, keys='interactive', size=vis_size,show=visible)
     grid = canvas.central_widget.add_grid()
@@ -121,6 +215,7 @@ def line_box(box,color=(0, 1, 0, 0.1)):
     lines = visuals.Line(pos=pos, connect='strip', width=1, color=color, antialias=True,method='gl')
 
     return lines
+
 #  using mayavi ===========================
 def lidar_3d_to_corners(pts_3D):
     """
@@ -168,10 +263,10 @@ def draw_3dPoints_box(lidar=None, Boxes3D=None, is_grid=True, fig=None, draw_axi
                       scale_factor=1,
                       figure=fig)
 
-    if Boxex3D is not None:
-        for i in range(Boxex3D.shape[0]):
-            b = lidar_3d_to_corners(Boxex3D[i, 1:7].reshape(-1, 6)).reshape(3, 8).transpose()
-            a = round(Boxex3D[i, 0], 2)
+    if Boxes3D is not None:
+        for i in range(Boxes3D.shape[0]):
+            b = lidar_3d_to_corners(Boxes3D[i, 1:7].reshape(-1, 6)).reshape(3, 8).transpose()
+            a = round(Boxes3D[i, 0], 2)
             if a == 1.0:
                 mycolor = (0., 1., 0.)
             else:
@@ -270,6 +365,7 @@ def show_bbox(bv_image, bv_gt, anchors, bv_box_pred=None):
     # filePath = "/media/disk4/deeplearningoflidar/he/CombiNet-he/output/"
     # cv2.imwrite(filePath+fileName,bv_image)
     return bv_image
+
 #  normal functions ======================
 def test_show_rpn_tf(img, box_pred=None):
     bv_data = tf.reshape(img[:, :, :, 8],(601, 601, 1))
