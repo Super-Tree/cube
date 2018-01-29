@@ -2,12 +2,12 @@ import numpy as np
 import tensorflow as tf
 
 from config import cfg
-from VFE import VFE
+from classify.VFE import VFE
 
-from rpn_classify import rpn_serial_extract_tf
+from classify.rpn_classify import rpn_serial_extract_tf
 from rpn.anchor_target_layer_tf import anchor_target_layer as anchor_target_layer_py
 from rpn.proposal_layer_tf import proposal_layer_3d as proposal_layer_py_3d,generate_rpn
-from rpn.rpn_3dcnn import cubic_rpn_grid_pyfc,cubic
+from classify.rpn_3dcnn import cubic_rpn_grid_pyfc,cubic
 
 def layer(op):
     def layer_decorated(self, *args, **kwargs):

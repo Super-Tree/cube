@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from config import cfg
+from network.config import cfg
 import numpy.random as npr
 from tools.data_visualize import draw_3dPoints_box
 

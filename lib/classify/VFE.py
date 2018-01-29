@@ -1,7 +1,7 @@
 # coding=utf-8
 import tensorflow as tf
 import numpy as np
-from config import cfg
+from network.config import cfg
 
 
 class vfe_encoder(object):
