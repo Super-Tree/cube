@@ -86,7 +86,7 @@ __C.TRAIN.BG_THRESH_LO = 0.1
 # Testing options
 __C.TEST = edict()
 __C.TEST.ITER_DISPLAY = 1
-__C.TEST.SAVE_IMAGE = False
+__C.TEST.SAVE_IMAGE = True
 # NMS threshold used on RPN proposals
 __C.TEST.RPN_NMS_THRESH = 0.32
 

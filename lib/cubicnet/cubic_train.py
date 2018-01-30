@@ -165,7 +165,7 @@ class CubicNet_Train(object):
 
         sess.run(tf.global_variables_initializer())
         if self.args.fine_tune:
-            if True:
+            if False:
                 # #full graph restore
                 print 'Loading pre-trained model weights from {:s}'.format(self.args.weights)
                 self.net.load(self.args.weights, sess, self.saver, True)
@@ -234,9 +234,9 @@ class CubicNet_Train(object):
                     trace_file.write(trace.generate_chrome_trace_format(show_memory=False))
                     trace_file.close()
                 if iter % cfg.TRAIN.ITER_DISPLAY == 0:
-                    recall_RPN = 0.
                     print 'Iter: %d / %d, loss: %.3f, rpn_recall: %.3f,' % \
                           (iter, self.args.epoch_iters * self.epoch,loss_,recall_RPN / cfg.TRAIN.ITER_DISPLAY)
+                    recall_RPN = 0.
                     print 'Cubic classify precise: {:.3f}  recall: {:.3f}'.format(cubic_car_cls_prec, cubic_car_cls_recall)
                     print 'Speed: {:.3f}s / iter'.format(timer.average_time)
                     print 'divine: ', cubic_result

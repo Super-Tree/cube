@@ -9,14 +9,14 @@ from dataset.dataset import dataset_train
 DEBUG = False
 
 shape = lambda i: int(np.ceil(np.round(cfg.ANCHOR[i] / cfg.CUBIC_RES[i], 3)))  # Be careful about python number  decimal
-cubic_size = [shape(0), shape(1), shape(2), 2]
+cubic_size = [shape(0), shape(1), shape(2), 4]
 
 
 def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes):
     x_points = lidarPoints[:, 0]
     y_points = lidarPoints[:, 1]
     z_points = lidarPoints[:, 2]
-    reflectance = lidarPoints[:, 3]
+    # reflectance = lidarPoints[:, 3]
 
     if DEBUG:
         print 'Start vispy ...'
@@ -48,11 +48,10 @@ def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes):
         y_cub = np.divide(yi, cfg.CUBIC_RES[1]).astype(np.int32)
         z_cub = np.divide(zi, cfg.CUBIC_RES[2]).astype(np.int32)
 
-        cubic_feature = np.zeros(shape=cubic_size, dtype=np.float32)
+        cubic_feature = np.ones(shape=cubic_size, dtype=np.float32)
         # a= points_mv_ctr[:,3:]
-        # b = np.ones([len(indice),1])
         feature = np.hstack((np.ones([len(indice),1]),points_mv_ctr[:,3:]))
-        cubic_feature[x_cub, y_cub, z_cub] = feature  # TODO:select&add feature # points_mv_ctr  # using center coordinate system
+        cubic_feature[x_cub, y_cub, z_cub] = points_mv_ctr  # TODO:select&add feature # points_mv_ctr  # using center coordinate system
         res.append(cubic_feature)
 
         if DEBUG:

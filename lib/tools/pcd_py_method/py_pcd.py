@@ -15,7 +15,7 @@ try:
 except ImportError:
     HAS_SENSOR_MSGS = False
 
-class PointCloud(object):
+class point_cloud(object):
     def __init__(self, metadata, pc_data):
         self.metadata_keys = metadata.keys()
         self.__dict__.update(metadata)
@@ -277,8 +277,9 @@ class PointCloud(object):
             else:
                 print('File->py_pcd.py: DATA field is not "ascii",maybe "binary" or "binary_compressed", try to add method for both')
                 return 'CODE: 0x123'
-            pc = PointCloud(metadata, pc_data)
+            pc = point_cloud(metadata, pc_data)
         return pc
+
 
 def generate_pcd(path,save_path):
     fileindex = sorted(os.listdir(path))
@@ -296,7 +297,7 @@ def generate_pcd(path,save_path):
                          'viewpoint': [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
                          'width': cnt,
                          })
-        pointcloud = PointCloud(metadata, pc_data)
+        pointcloud = pointcloud(metadata, pc_data)
         pcd_name = os.path.join(save_path, str(idx_).zfill(6) + '.pcd')
         pointcloud.save(pcd_name)
         print 'save file: {}'.format(pcd_name)
@@ -304,7 +305,7 @@ def generate_pcd(path,save_path):
 def show_pcd(dataPath):
     fileindex = sorted(os.listdir(dataPath))
     for File in fileindex:
-        pc = PointCloud.from_path(os.path.join(dataPath,File))
+        pc = point_cloud.from_path(os.path.join(dataPath, File))
         pcd_vispy(pc.pc_data)
 
 

@@ -383,7 +383,7 @@ class Network(object):
     def cubic_cnn(self,input, name):
         with tf.variable_scope(name, reuse=tf.AUTO_REUSE) as scope:
             batch_size = tf.shape(input)  # 5 numbers
-            cubic3dcnn = cubic(batch_size, [32, 64, 128, 64,2])
+            cubic3dcnn = cubic(batch_size, [64, 128, 256, 64,2])
             result = cubic3dcnn.apply(input)
         return result
 

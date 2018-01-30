@@ -17,8 +17,8 @@ os.makedirs(folder)
 class pcd_vispy_client(object):# TODO: TO BE RE-WRITE
     def __init__(self,QUEUE,title=None, keys='interactive', size=(800,600)):
         self.queue=QUEUE
-        canvas = vispy.scene.SceneCanvas(title=title, keys=keys, size=size, show=True)
-        grid = canvas.central_widget.add_grid()
+        self.canvas = vispy.scene.SceneCanvas(title=title, keys=keys, size=size, show=True)
+        grid = self.canvas.central_widget.add_grid()
         self.vb = grid.add_view(row=0, col=0, row_span=2)
         self.vb_img = grid.add_view(row=1, col=0)
 
@@ -34,10 +34,10 @@ class pcd_vispy_client(object):# TODO: TO BE RE-WRITE
         self.vb_img.camera.azimuth = 0.0
         self.vb_img.camera.scale_factor = 1500
 
-        @canvas.connect
+        @self.canvas.connect
         def on_key_press(ev):
             if ev.key.name in '+=':
-                a = vb.camera.get_state()
+                a = self.vb.camera.get_state()
             print(a)
 
         self.input_data()
@@ -75,27 +75,27 @@ class pcd_vispy_client(object):# TODO: TO BE RE-WRITE
                     vtcs = np.add(vertices, center)
                     mesh_border_box.set_vertices(vtcs)
                     mesh_box.set_vertices(vtcs)
-                    vb.add(vsp_box)
+                    self.vb.add(vsp_box)
                     if False:
                         text = visuals.Text(text='gt: ({}/{})'.format(i, gt_cnt), color='white', face='OpenSans', font_size=12,
                                             pos=[box[1], box[2], box[3]],anchor_x='left', anchor_y='top', font_manager=None)
-                        vb.add(text)
+                        self.vb.add(text)
 
                 if (box[-1]+box[-2]) == 0: # True negative cls rpn divided by cube
-                    vb.add(line_box(box,color=color))
+                    self.vb.add(line_box(box,color=color))
                 if (box[-1]+box[-2]) == 1: # False negative cls rpn divided by cube
-                    vb.add(line_box(box,color='red'))
+                    self.vb.add(line_box(box,color='red'))
                 if (box[-1]+box[-2]) == 2: # False positive cls rpn divided by cube
                     if no_gt:
-                        vb.add(line_box(box, color='yellow'))
+                        self.vb.add(line_box(box, color='yellow'))
                     else:
-                        vb.add(line_box(box, color='blue'))
+                        self.vb.add(line_box(box, color='blue'))
                 if (box[-1]+box[-2]) == 3: # True positive cls rpn divided by cube
-                    vb.add(line_box(box,color='yellow'))
+                    self.vb.add(line_box(box,color='yellow'))
 
         if save_img:
             fileName = path_add(folder,str(index).zfill(6)+'.png')
-            res = canvas.render(bgcolor='black')[:,:,0:3]
+            res = self.canvas.render(bgcolor='black')[:,:,0:3]
             vispy_file.write_png(fileName, res)
 
     def get_thread_data(self,QUEUE):
