@@ -4,7 +4,7 @@ import tensorflow as tf
 from tools.data_visualize import pcd_vispy,pcd_show_now
 from network.config import cfg
 from easydict import EasyDict as edict
-from dataset.dataset import dataset_train
+from dataset.dataset import dataset_KITTI_train
 
 DEBUG = False
 
@@ -125,7 +125,7 @@ class cubic(object):
 if __name__ == '__main__':
     arg = edict()
     arg.imdb_type = 'kitti'
-    dataset = dataset_train(arg)
+    dataset = dataset_KITTI_train(arg)
     DEBUG=True
     while True:
 

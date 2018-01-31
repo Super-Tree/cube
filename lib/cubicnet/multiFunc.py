@@ -8,8 +8,8 @@ import random
 import mayavi.mlab as mlab  # 3d point
 import cPickle as pickle
 
-from sensor_msgs.msg import PointCloud, ChannelFloat32
-from geometry_msgs.msg import Point32
+# from sensor_msgs.msg import PointCloud, ChannelFloat32
+# from geometry_msgs.msg import Point32
 
 import os.path as osp
 import sys
@@ -397,17 +397,6 @@ def load_kitti_calib(filenames):
             'Tr_velo2cam': Tr_velo_to_cam.reshape(3, 4)}
 
 
-def rename_bat(path):
-    if not os.path.exists(path):
-        print "The path: {} doesn't exits! ".format(path)
-        return 0
-
-    files = sorted(os.listdir(path))
-    for n in range(len(files)):
-        oldname = os.path.join(path, files[n])
-        newname = os.path.join(path, "{:0>6}".format(n) + '.bin')
-        os.rename(oldname, newname)
-        print(oldname, '======>', newname)
 
 
 def draw_lidar(lidar, is_grid=True, fig=None, draw_axis=True):
@@ -864,8 +853,33 @@ def check_inside(lidar, pred_box):
     )[0])
     return inds_inside
 
+def rename_bat(path):
+    if not os.path.exists(path):
+        print "The path: {} doesn't exits! ".format(path)
+        return 0
+    files = sorted(os.listdir(path),key=lambda name:int(name[18:-4]))
+    for n in range(len(files)):
+        oldname = os.path.join(path, files[n])
+        newname = os.path.join(path, "170829-1744-LM120_{}".format(n+2700) + '.pcd')
+        os.rename(oldname, newname)
+        print(oldname, '======>', newname)
+
 
 if __name__ == '__main__':
+    path ='/home/hexindong/DATASET/stidataset/LM120-170829-1743/pcd/'
+    rename_bat(path)
+    libel_fname= '/home/hexindong/DATASET/stidataset/LM120-170829-1743/label/result.txt'
+    new_lines=[]
+    with open(libel_fname, 'r') as f:
+        lines = f.readlines()
+    for line in lines:
+        line = line.replace('LM120-170829-1743','170829-1744-LM120')
+        new_lines.append(line)
+    f2 = open('/home/hexindong/DATASET/stidataset/LM120-170829-1743/label/result_mo.txt', 'w')
+    for line in new_lines:
+        f2.write(line)
+    f2.close()
+    print 'Done !'
 
     # rospy.init_node('rostensorflow')
     # pub = rospy.Publisher('prediction', PointCloud, queue_size=1000)
@@ -891,8 +905,6 @@ if __name__ == '__main__':
             # a = tf.constant(0,tf.float32,[1,2])
             idx = input('Type a new index: ')
             data_show('/home/hexindong/ws_dl/pyProj/CubicNet-server/data/training/', idx)
-
-
 
             # for i in range(20):
             #     filepath = "/home/hexindong/ws_dl/pyProj/MV3D_TF/data/KITTI_ORIGIN/object/training/"

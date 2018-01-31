@@ -6,19 +6,23 @@
 # --------------------------------------------------------
 
 """Factory method for easily getting imdbs by name."""
-import os
-import os.path as osp
-import numpy as np
-import random
-import cPickle
-import scipy.sparse
-from tools.transform import camera_to_lidar_cnr, computeCorners3D, lidar_3d_to_bv, lidar_cnr_to_3d, my_conner2bvbox
-from network.config import cfg
-import socket
+
 import cv2
+import re
+import os
+import random
+import socket
+import cPickle
+import numpy as np
+import scipy.sparse
+import os.path as osp
+from network.config import cfg
+from os.path import join as path_add
+from easydict import EasyDict as edict
+from tools.transform import camera_to_lidar_cnr, computeCorners3D, lidar_3d_to_bv, lidar_cnr_to_3d, my_conner2bvbox
+from tools.pcd_py_method.py_pcd import point_cloud as pcd2npScan
 
-
-class dataset_train(object):  # read txt files one by one
+class dataset_KITTI_train(object):  # read txt files one by one
     def __init__(self, arguments):
         self._type = arguments.imdb_type  # kitti or sti
         self._classes = ('__background__', 'Car')  # , 'Pedestrian', 'Cyclist')
@@ -462,8 +466,7 @@ class dataset_train(object):  # read txt files one by one
         else:
             return False
 
-
-class dataset_test(object):  # read txt files one by one
+class dataset_KITTI_test(object):  # read txt files one by one
     def __init__(self, arguments):
         self._type = arguments.imdb_type  # kitti or sti
         self._classes = ('__background__', 'Car')  # , 'Pedestrian', 'Cyclist')
@@ -579,9 +582,471 @@ class dataset_test(object):  # read txt files one by one
         return blobs
 
 
+class dataset_STI_train(object):  # read txt files one by one
+    def __init__(self, arguments):
+        self._type = arguments.imdb_type  # kitti or sti
+        self.data_path = '/home/hexindong/DATASET/stidataset/'
+        self.folder_list = ['170818-1743-LM120', '170825-1708-LM120', '170829-1743-LM120', '170829-1744-LM120',
+                            '1180254121101']
+        self._classes = ['unknown', 'smallMot', 'bigMot', 'nonMot', 'pedestrian']
+        self.type_to_keep = ['unknown', 'smallMot']
+        self.num_classes = len(self._classes)
+        self.class_convert = dict(zip(self._classes, xrange(self.num_classes)))
+        self.total_roidb = []
+        self.filter_roidb = []
+        self.percent_train = 0.66
+        self.percent_valid = 0.26
+        self.train_set, self.valid_set, self.test_set = self.load_dataset()
+        print 'Done!'
+
+    def load_dataset(self):
+        train_cache_file = path_add(self.data_path, 'train_cache_data.pkl')
+        valid_cache_file = path_add(self.data_path, 'valid_cache_data.pkl')
+        test_cache_file = path_add(self.data_path, 'test_cache_data.pkl')
+        if os.path.exists(train_cache_file) & os.path.exists(valid_cache_file) & os.path.exists(test_cache_file):
+            print 'Loaded the STi dataset from pkl cache files ...'
+            with open(train_cache_file, 'rb') as fid:
+                train_set = cPickle.load(fid)
+                print '  Train gt set loaded from {}'.format(train_cache_file)
+
+            with open(valid_cache_file, 'rb') as fid:
+                valid_set = cPickle.load(fid)
+                print '  valid gt set loaded from {}'.format(valid_cache_file)
+
+            with open(test_cache_file, 'rb') as fid:
+                test_set = cPickle.load(fid)
+                print '  test gt set loaded from {}'.format(test_cache_file)
+
+            return train_set, valid_set, test_set
+
+        print 'Prepare the STi dataset for training, please wait ...'
+        self.total_roidb = self.load_sti_annotation()
+        self.filter_roidb = self.filter(self.total_roidb, self.type_to_keep)
+        train_set, valid_set, test_set = self.assign_dataset(self.filter_roidb)  # train,valid percent
+
+        with open(train_cache_file, 'wb') as fid:
+            cPickle.dump(train_set, fid, cPickle.HIGHEST_PROTOCOL)
+            print '  Wrote and loaded train gt roidb to {}'.format(train_cache_file)
+        with open(valid_cache_file, 'wb') as fid:
+            cPickle.dump(valid_set, fid, cPickle.HIGHEST_PROTOCOL)
+            print '  Wrote and loaded valid gt roidb to {}'.format(valid_cache_file)
+        with open(test_cache_file, 'wb') as fid:
+            cPickle.dump(test_set, fid, cPickle.HIGHEST_PROTOCOL)
+            print '  Wrote and loaded test gt roidb to {}'.format(test_cache_file)
+
+        return train_set, valid_set, test_set
+
+    def load_sti_annotation(self):
+        """
+        Load points and bounding boxes info from txt file in the KITTI
+        format.
+        """
+        for index, folder in enumerate(self.folder_list):
+            libel_fname = path_add(self.data_path, folder, 'label', 'result.txt')
+            label = []
+            files_names = []
+            with open(libel_fname, 'r') as f:
+                lines = f.readlines()
+            for line in lines:
+                files_names.append(self.get_fname_from_label(line))
+                line = line.replace('unknown', '0.0').replace('smallMot', '1.0').replace('bigMot', '2.0').replace(
+                    'nonMot', '3.0').replace('pedestrian', '4.0')
+                object_str = line.translate(None, '\"').split('position:{')[1:]
+                label_in_frame = []
+                for obj in object_str:
+                    f_str_num = re.findall('[-+]?\d+\.\d+', obj)
+                    for j, num in enumerate(f_str_num):
+                        pass
+                        f_str_num[j] = float(num)
+                    if j == 10:  # filter the  wrong type label like   type: position
+                        label_in_frame.append(f_str_num)
+                selected_label = np.array(label_in_frame, dtype=np.float32)
+                label.append(
+                    selected_label[:, (0, 1, 2, 6, 7, 8, 3, 9)])  # extract the valuable data:x,y,z,l,w,h,theta,type
+            if index == 0:
+                total_labels = label
+                total_fnames = files_names
+            else:
+                total_labels.extend(label)
+                total_fnames.extend(files_names)
+
+        dataset = [dict({'files_list': total_fnames[i], 'labels': total_labels[i]}) for i in range(len(total_fnames))]
+        return dataset
+
+    def assign_dataset(self, data):
+        cnt = len(data)
+        test_index = []
+        train_index = []
+
+        temp_index = sorted(random.sample(range(cnt), int(cnt * (self.percent_train + self.percent_valid))))
+        for i in range(cnt):
+            if i not in temp_index:
+                test_index.append(i)
+        valid_index = sorted(random.sample(temp_index, int(cnt * self.percent_valid)))
+        for k in temp_index:
+            if k not in valid_index:
+                train_index.append(k)
+
+        train_roidb = [data[k] for k in train_index]
+        valid_roidb = [data[k] for k in valid_index]
+        test_roidb = [data[k] for k in test_index]
+
+        return train_roidb, valid_roidb, test_roidb
+
+    def filter(self, data, filter_type):
+        """Remove roidb entries that out of bounds and category."""
+
+        # numpy:->   x,y,z,l,w,h,theta,type
+        def is_valid(dataset):
+            boxes = dataset['labels']
+
+            bool_stack = [False for _ in range(boxes.shape[0])]
+            for i in range(len(filter_type)):
+                res = boxes[:, 7] == float(self.class_convert[filter_type[i]])
+                bool_stack = np.logical_or(bool_stack, res)
+
+            indice_inside = np.where((boxes[:, 0] >= -45.) & (boxes[:, 0] <= 45.)
+                                     & (boxes[:, 1] >= -45.) & (boxes[:, 1] <= 45.)
+                                     & bool_stack
+                                     )[0]
+            if len(indice_inside) == 0:
+                return False, None
+            else:
+                return True, boxes[indice_inside]
+
+        keep_indice = []
+        num = len(data)
+        for index in range(num):
+            keep, result = is_valid(data[index])
+            if keep:
+                data[index]['labels'] = result
+                keep_indice.append(index)
+
+        filter_data = [data[k] for k in keep_indice]
+
+        num_after = len(filter_data)
+        print 'Filtered {} roidb entries: {} -> {}'.format(num - num_after, num, num_after)
+        return filter_data
+
+    def augmentation_of_data(self):
+        # Rotation of the image or change the scale
+        pass
+
+    def get_minibatch(self, idx=0, name='train'):
+        """Given a roidb, construct a minibatch sampled from it."""
+        if name == 'train':
+            dataset = self.train_set
+        elif name == 'valid':
+            dataset = self.valid_set
+        else:
+            dataset = self.test_set
+
+        fname = dataset[idx]['files_list']
+        lidar_data = pcd2npScan.from_path(path_add(self.data_path, fname.split('/')[0], 'pcd', fname.split('/')[1]))
+        gt_label = dataset[idx]['labels']
+        blobs = dict({'lidar3d_data': lidar_data.pc_data,
+                      'gt_boxes_3d': gt_label,
+                      })
+        return blobs
+
+    @staticmethod
+    def get_fname_from_label(strings):
+        regulars = ['files/\d+-\d+-LM\d+/\d+-\d+-LM\d+_\d+\.pcd', 'files/\d+/\d+_\d+\.pcd']
+        for i in range(len(regulars)):
+            res = re.findall(regulars[i], strings)
+            if len(res) != 0:
+                if len(res) == 1:
+                    return res[0][6:]
+                else:
+                    print'File: dataset_sti,function:get_fname_from_label \n  regular expression get more than one qualified file name'
+                    exit(23)
+
+    @staticmethod
+    def stiData2pointcloud(Scan):
+        from sensor_msgs.msg import PointCloud, ChannelFloat32
+        from geometry_msgs.msg import Point32
+        point_cloud = Scan.reshape((16, 2016, 4))
+        pointx = point_cloud[:, :, 0].flatten()
+        pointy = point_cloud[:, :, 1].flatten()
+        pointz = point_cloud[:, :, 2].flatten()
+        intensity = point_cloud[:, :, 3].flatten()
+        # labels = point_cloud[:, :, 6].flatten()
+
+        seg_point = PointCloud()
+        seg_point.header.frame_id = 'rslidar'
+        channels1 = ChannelFloat32()
+        seg_point.channels.append(channels1)
+        seg_point.channels[0].name = "rgb"
+        channels2 = ChannelFloat32()
+        seg_point.channels.append(channels2)
+        seg_point.channels[1].name = "intensity"
+
+        for i in range(32256):
+            seg_point.channels[1].values.append(intensity[i])
+            if True:  # labels[i] == 1:
+                seg_point.channels[0].values.append(255)
+                geo_point = Point32(pointx[i], pointy[i], pointz[i])
+                seg_point.points.append(geo_point)
+            else:
+                seg_point.channels[0].values.append(255255255)
+                geo_point = Point32(pointx[i], pointy[i], pointz[i])
+                seg_point.points.append(geo_point)
+                # elif result[i] == 2:
+                #     seg_point.channels[0].values.append(255255255)
+                #     geo_point = Point32(pointx[i], pointy[i], pointz[i])
+                #     seg_point.points.append(geo_point)
+                # elif result[i] == 3:
+                #     seg_point.channels[0].values.append(255000)
+                #     geo_point = Point32(pointx[i], pointy[i], pointz[i])
+                #     seg_point.points.append(geo_point)
+
+        return seg_point
+
+class dataset_STI_test(object):  # read txt files one by one
+    def __init__(self, arguments):
+        self._type = arguments.imdb_type  # kitti or sti
+        self.data_path = '/home/hexindong/DATASET/stidataset/'
+        self.folder_list = ['170829-1744-LM120', '1180254121101']
+        self._classes = ['unknown', 'smallMot', 'bigMot', 'nonMot', 'pedestrian']
+        self.type_to_keep = ['unknown', 'smallMot']
+        self.num_classes = len(self._classes)
+        self.class_convert = dict(zip(self._classes, xrange(self.num_classes)))
+        self.total_roidb = []
+        self.filter_roidb = []
+        self.percent_train = 0.66
+        self.percent_valid = 0.26
+        self.test_set = self.load_dataset()
+        print 'Done!'
+
+    def load_dataset(self):
+        train_cache_file = path_add(self.data_path, 'train_cache_data.pkl')
+        valid_cache_file = path_add(self.data_path, 'valid_cache_data.pkl')
+        test_cache_file = path_add(self.data_path, 'test_cache_data.pkl')
+        if os.path.exists(train_cache_file) & os.path.exists(valid_cache_file) & os.path.exists(test_cache_file):
+            print 'Loaded the STi dataset from pkl cache files ...'
+            # with open(train_cache_file, 'rb') as fid:
+            #     train_set = cPickle.load(fid)
+            #     print '  Train gt set loaded from {}'.format(train_cache_file)
+            #
+            # with open(valid_cache_file, 'rb') as fid:
+            #     valid_set = cPickle.load(fid)
+            #     print '  valid gt set loaded from {}'.format(valid_cache_file)
+
+            with open(test_cache_file, 'rb') as fid:
+                test_set = cPickle.load(fid)
+                print '  test gt set loaded from {}'.format(test_cache_file)
+
+            return test_set
+
+        print 'Prepare the STi dataset for training, please wait ...'
+        self.total_roidb = self.load_sti_annotation()
+        self.filter_roidb = self.filter(self.total_roidb, self.type_to_keep)
+        train_set, valid_set, test_set = self.assign_dataset(self.filter_roidb)  # train,valid percent
+
+        with open(train_cache_file, 'wb') as fid:
+            cPickle.dump(train_set, fid, cPickle.HIGHEST_PROTOCOL)
+            print '  Wrote and loaded train gt roidb to {}'.format(train_cache_file)
+        with open(valid_cache_file, 'wb') as fid:
+            cPickle.dump(valid_set, fid, cPickle.HIGHEST_PROTOCOL)
+            print '  Wrote and loaded valid gt roidb to {}'.format(valid_cache_file)
+        with open(test_cache_file, 'wb') as fid:
+            cPickle.dump(test_set, fid, cPickle.HIGHEST_PROTOCOL)
+            print '  Wrote and loaded test gt roidb to {}'.format(test_cache_file)
+
+        return test_set
+
+    def load_sti_annotation(self):
+        """
+        Load points and bounding boxes info from txt file in the KITTI
+        format.
+        """
+        for index, folder in enumerate(self.folder_list):
+            libel_fname = path_add(self.data_path, folder, 'label', 'result.txt')
+            label = []
+            files_names = []
+            with open(libel_fname, 'r') as f:
+                lines = f.readlines()
+            for line in lines:
+                files_names.append(self.get_fname_from_label(line))
+                line = line.replace('unknown', '0.0').replace('smallMot', '1.0').replace('bigMot', '2.0').replace(
+                    'nonMot', '3.0').replace('pedestrian', '4.0')
+                object_str = line.translate(None, '\"').split('position:{')[1:]
+                label_in_frame = []
+                for obj in object_str:
+                    f_str_num = re.findall('[-+]?\d+\.\d+', obj)
+                    for j, num in enumerate(f_str_num):
+                        pass
+                        f_str_num[j] = float(num)
+                    if j == 10:  # filter the  wrong type label like   type: position
+                        label_in_frame.append(f_str_num)
+                selected_label = np.array(label_in_frame, dtype=np.float32)
+                label.append(
+                    selected_label[:, (0, 1, 2, 6, 7, 8, 3, 9)])  # extract the valuable data:x,y,z,l,w,h,theta,type
+            if index == 0:
+                total_labels = label
+                total_fnames = files_names
+            else:
+                total_labels.extend(label)
+                total_fnames.extend(files_names)
+
+        dataset = [dict({'files_list': total_fnames[i], 'labels': total_labels[i]}) for i in range(len(total_fnames))]
+        return dataset
+
+    def assign_dataset(self, data):
+        cnt = len(data)
+        test_index = []
+        train_index = []
+
+        temp_index = sorted(random.sample(range(cnt), int(cnt * (self.percent_train + self.percent_valid))))
+        for i in range(cnt):
+            if i not in temp_index:
+                test_index.append(i)
+        valid_index = sorted(random.sample(temp_index, int(cnt * self.percent_valid)))
+        for k in temp_index:
+            if k not in valid_index:
+                train_index.append(k)
+
+        train_roidb = [data[k] for k in train_index]
+        valid_roidb = [data[k] for k in valid_index]
+        test_roidb = [data[k] for k in test_index]
+
+        return train_roidb, valid_roidb, test_roidb
+
+    def filter(self, data, filter_type):
+        """Remove roidb entries that out of bounds and category."""
+
+        # numpy:->   x,y,z,l,w,h,theta,type
+        def is_valid(dataset):
+            boxes = dataset['labels']
+
+            bool_stack = [False for _ in range(boxes.shape[0])]
+            for i in range(len(filter_type)):
+                res = boxes[:, 7] == float(self.class_convert[filter_type[i]])
+                bool_stack = np.logical_or(bool_stack, res)
+
+            indice_inside = np.where((boxes[:, 0] >= -45.) & (boxes[:, 0] <= 45.)
+                                     & (boxes[:, 1] >= -45.) & (boxes[:, 1] <= 45.)
+                                     & bool_stack
+                                     )[0]
+            if len(indice_inside) == 0:
+                return False, None
+            else:
+                return True, boxes[indice_inside]
+
+        keep_indice = []
+        num = len(data)
+        for index in range(num):
+            keep, result = is_valid(data[index])
+            if keep:
+                data[index]['labels'] = result
+                keep_indice.append(index)
+
+        filter_data = [data[k] for k in keep_indice]
+
+        num_after = len(filter_data)
+        print 'Filtered {} roidb entries: {} -> {}'.format(num - num_after, num, num_after)
+        return filter_data
+
+    def augmentation_of_data(self):
+        # Rotation of the image or change the scale
+        pass
+
+    def get_minibatch(self, idx=0,name='test'):
+        """Given a roidb, construct a minibatch sampled from it."""
+        dataset = self.test_set
+        fname = dataset[idx]['files_list']
+        lidar_data = pcd2npScan.from_path(path_add(self.data_path, fname.split('/')[0], 'pcd', fname.split('/')[1]))
+        # gt_label = dataset[idx]['labels']
+        blobs = dict({'lidar3d_data': lidar_data.pc_data,
+                      # 'gt_boxes_3d': gt_label,
+                      })
+        return blobs
+
+    @staticmethod
+    def get_fname_from_label(strings):
+        regulars = ['files/\d+-\d+-LM\d+/\d+-\d+-LM\d+_\d+\.pcd', 'files/\d+/\d+_\d+\.pcd']
+        for i in range(len(regulars)):
+            res = re.findall(regulars[i], strings)
+            if len(res) != 0:
+                if len(res) == 1:
+                    return res[0][6:]
+                else:
+                    print'File: dataset_sti,function:get_fname_from_label \n  regular expression get more than one qualified file name'
+                    exit(23)
+
+    @staticmethod
+    def stiData2pointcloud(Scan):
+        from sensor_msgs.msg import PointCloud, ChannelFloat32
+        from geometry_msgs.msg import Point32
+        point_cloud = Scan.reshape((16, 2016, 4))
+        pointx = point_cloud[:, :, 0].flatten()
+        pointy = point_cloud[:, :, 1].flatten()
+        pointz = point_cloud[:, :, 2].flatten()
+        intensity = point_cloud[:, :, 3].flatten()
+        # labels = point_cloud[:, :, 6].flatten()
+
+        seg_point = PointCloud()
+        seg_point.header.frame_id = 'rslidar'
+        channels1 = ChannelFloat32()
+        seg_point.channels.append(channels1)
+        seg_point.channels[0].name = "rgb"
+        channels2 = ChannelFloat32()
+        seg_point.channels.append(channels2)
+        seg_point.channels[1].name = "intensity"
+
+        for i in range(32256):
+            seg_point.channels[1].values.append(intensity[i])
+            if True:  # labels[i] == 1:
+                seg_point.channels[0].values.append(255)
+                geo_point = Point32(pointx[i], pointy[i], pointz[i])
+                seg_point.points.append(geo_point)
+            else:
+                seg_point.channels[0].values.append(255255255)
+                geo_point = Point32(pointx[i], pointy[i], pointz[i])
+                seg_point.points.append(geo_point)
+                # elif result[i] == 2:
+                #     seg_point.channels[0].values.append(255255255)
+                #     geo_point = Point32(pointx[i], pointy[i], pointz[i])
+                #     seg_point.points.append(geo_point)
+                # elif result[i] == 3:
+                #     seg_point.channels[0].values.append(255000)
+                #     geo_point = Point32(pointx[i], pointy[i], pointz[i])
+                #     seg_point.points.append(geo_point)
+
+        return seg_point
+
+
 def get_data(arguments):
     """Get an imdb (image database) by name."""
     if arguments.method == 'train':
-        return dataset_train(arguments)
+        if arguments.imdb_type == 'kitti':
+            return dataset_KITTI_train(arguments)
+        else:
+            return dataset_STI_train(arguments)
     else:
-        return dataset_test(arguments)
+        if arguments.imdb_type == 'kitti':
+            return dataset_KITTI_test(arguments)
+        else:
+            return dataset_STI_test(arguments)
+
+
+if __name__ == '__main__':
+    import rospy
+    from sensor_msgs.msg import PointCloud, ChannelFloat32
+    arg = edict()
+    arg.method = 'train'
+    arg.imdb_type = 'sti'
+    dataset = get_data(arg)
+    a = dataset.get_minibatch(0,name='train')
+
+    rospy.init_node('rostensorflow')
+    pub = rospy.Publisher('prediction', PointCloud, queue_size=1000)
+    rospy.loginfo("ROS begins ...")
+
+    idx = 0
+    while True:
+        print 'display frame;{}'.format(idx)
+        scans = dataset.get_minibatch(idx, name='train')
+        pointcloud = dataset.stiData2pointcloud(scans['lidar3d_data'])
+        pub.publish(pointcloud)
+        idx += 1

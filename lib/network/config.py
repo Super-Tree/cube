@@ -27,7 +27,7 @@ __C.ANCHOR = [4.000,4.000,2.000]  # car size # todo: car height should be carefu
 __C.CUBIC_RES = [0.286,0.286,0.143]  # car size
 __C.ANCHOR_CNT=1
 __C.RPN_POINTS_REMAIN = 600
-
+__C.DETECTION_RANGE = 45.
 __C.RANDOM_STR =''.join(random.sample(string.ascii_letters, 4))
 if spawn.find_executable("nvcc",path="/usr/local/cuda-8.0/bin/"):
     # Use GPU implementation of non-maximum suppression
