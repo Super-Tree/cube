@@ -9,7 +9,7 @@ from dataset.dataset import dataset_KITTI_train
 DEBUG = False
 
 shape = lambda i: int(np.ceil(np.round(cfg.ANCHOR[i] / cfg.CUBIC_RES[i], 3)))  # Be careful about python number  decimal
-cubic_size = [shape(0), shape(1), shape(2), 2]
+cubic_size = [shape(0), shape(1), shape(2), 4]
 
 
 def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes):
@@ -48,18 +48,16 @@ def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes):
         y_cub = np.divide(yi, cfg.CUBIC_RES[1]).astype(np.int32)
         z_cub = np.divide(zi, cfg.CUBIC_RES[2]).astype(np.int32)
 
-        cubic_feature = np.zeros(shape=cubic_size, dtype=np.float32)
+        cubic_feature = np.ones(shape=cubic_size, dtype=np.float32)
         # a= points_mv_ctr[:,3:]
-        # b = np.ones([len(indice),1])
         feature = np.hstack((np.ones([len(indice),1]),points_mv_ctr[:,3:]))
-        cubic_feature[x_cub, y_cub, z_cub] = feature  # TODO:select&add feature # points_mv_ctr  # using center coordinate system
+        cubic_feature[x_cub, y_cub, z_cub] = points_mv_ctr  # TODO:select&add feature # points_mv_ctr  # using center coordinate system
         res.append(cubic_feature)
 
         if DEBUG:
             box_mv = [box[0], box[1] - box[1], box[2] - box[2], box[3] - box[3], cfg.ANCHOR[0], cfg.ANCHOR[1],
                       cfg.ANCHOR[2], box[7],0]
             display_stack.append(pcd_vispy(cubic_feature.reshape(-1, 4), boxes=np.array(box_mv),visible=False))
-            # TODO: deal with multi-windows display
     if DEBUG:
         pcd_show_now()
     stack_size = np.concatenate((np.array([-1]), cubic_size))

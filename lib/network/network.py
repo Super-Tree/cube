@@ -6,7 +6,8 @@ from classify.VFE import VFE
 
 from classify.rpn_classify import rpn_serial_extract_tf
 from rpn.anchor_target_layer_tf import anchor_target_layer as anchor_target_layer_py
-from rpn.proposal_layer_tf import proposal_layer_3d as proposal_layer_py_3d,generate_rpn
+from rpn.proposal_layer_tf import proposal_layer_3d as proposal_layer_py_3d
+from rpn.proposal_layer_tf import proposal_layer_3d_STI,generate_rpn
 from classify.rpn_3dcnn import cubic_rpn_grid_pyfc,cubic
 
 def layer(op):
@@ -110,8 +111,7 @@ class Network(object):
 
     @layer
     def conv(self, input, k_h, k_w, c_o, s_h, s_w, name='conv', relu=True, bn=False, phase_train=True, has_bias=True,
-             padding=cfg.DEFAULT_PADDING, group=1,
-             trainable=True):
+             padding=cfg.DEFAULT_PADDING, group=1,trainable=True):
         self.validate_padding(padding)
         c_i = input.get_shape()[-1]
         assert c_i % group == 0
@@ -154,9 +154,7 @@ class Network(object):
 
     @layer
     def deconv(self, input, shape, c_o, ksize1=3, ksize2=3, stride1=2, stride2=2, name='upconv', biased=False,
-               relu=True,
-               padding=cfg.DEFAULT_PADDING,
-               trainable=True):
+               relu=True,padding=cfg.DEFAULT_PADDING,trainable=True):
         """ up-conv"""
         self.validate_padding(padding)
 
@@ -362,6 +360,15 @@ class Network(object):
         return rpn_rois_bv, rpn_rois_3d, rpn_recall
 
     @layer
+    def proposal_layer_3d_STI(self,input,bounding,num,name):
+
+        with tf.variable_scope(name,reuse=tf.AUTO_REUSE) as scope:
+            rpn_rois_3d= tf.py_func(proposal_layer_3d_STI,[input,bounding,num],[tf.float32])
+            rpn_rois_3d = tf.reshape(rpn_rois_3d, [-1, 8], name='rpn_rois_3d')
+
+        return rpn_rois_3d
+
+    @layer
     def generate_rpn(self, input, _feat_stride, cfg_key, name):
 
         with tf.variable_scope(name,reuse=tf.AUTO_REUSE) as scope:
@@ -383,7 +390,7 @@ class Network(object):
     def cubic_cnn(self,input, name):
         with tf.variable_scope(name, reuse=tf.AUTO_REUSE) as scope:
             batch_size = tf.shape(input)  # 5 numbers
-            cubic3dcnn = cubic(batch_size, [64, 128, 256, 64,2])
+            cubic3dcnn = cubic(batch_size, [32, 64, 128, 64,2])
             result = cubic3dcnn.apply(input)
         return result
 
