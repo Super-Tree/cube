@@ -257,6 +257,37 @@ class point_cloud(object):
             dtype = np.dtype(zip(fieldnames, typenames))
             return dtype
 
+        def parse_binary_pc_data(f, dtype, metadata):
+            rowstep = metadata['points'] * dtype.itemsize
+            # for some reason pcl adds empty space at the end of files
+            buf = f.read(rowstep)
+            return np.fromstring(buf, dtype=dtype)
+
+        def parse_binary_compressed_pc_data(f, dtype, metadata):
+            # compressed size of data (uint32)
+            # uncompressed size of data (uint32)
+            # compressed data
+            # junk
+            fmt = 'II'
+            compressed_size, uncompressed_size = struct.unpack(fmt, f.read(struct.calcsize(fmt)))
+            compressed_data = f.read(compressed_size)
+            # TODO what to use as second argument? if buf is None
+            # (compressed > uncompressed)
+            # should we read buf as raw binary?
+            buf = lzf.decompress(compressed_data, uncompressed_size)
+            if len(buf) != uncompressed_size:
+                raise Exception('Error decompressing data')
+            # the data is stored field-by-field
+            pcs_data = np.zeros(metadata['width'], dtype=dtype)
+            ix = 0
+            for dti in range(len(dtype)):
+                dt = dtype[dti]
+                bytess = dt.itemsize * metadata['width']
+                column = np.fromstring(buf[ix:(ix + bytess)], dt)
+                pcs_data[dtype.names[dti]] = column
+                ix += bytess
+            return pcs_data
+
         with open(fname, 'rb') as f:
             header = []
             while True:
@@ -270,10 +301,10 @@ class point_cloud(object):
                 pc_data = np.loadtxt(f, dtype=dtype, delimiter=' ')
                 pc_data.dtype = np.float32
                 pc_data = pc_data.reshape(-1, 4)
-            # elif metadata['data'] == 'binary':
-            #     pc_data = parse_binary_pc_data(f, dtype, metadata)
-            # elif metadata['data'] == 'binary_compressed':
-            #     pc_data = parse_binary_compressed_pc_data(f, dtype, metadata)
+            elif metadata['data'] == 'binary':
+                pc_data = parse_binary_pc_data(f, dtype, metadata)
+            elif metadata['data'] == 'binary_compressed':
+                pc_data = parse_binary_compressed_pc_data(f, dtype, metadata)
             else:
                 print('File->py_pcd.py: DATA field is not "ascii",maybe "binary" or "binary_compressed", try to add method for both')
                 return 'CODE: 0x123'
