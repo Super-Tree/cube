@@ -589,7 +589,7 @@ class dataset_STI_train(object):  # read txt files one by one
         self.folder_list = ['170818-1743-LM120', '170825-1708-LM120', '170829-1743-LM120', '170829-1744-LM120',
                             '1180254121101']
         self._classes = ['unknown', 'smallMot', 'bigMot', 'nonMot', 'pedestrian']
-        self.type_to_keep = ['unknown', 'smallMot']
+        self.type_to_keep = ['smallMot']
         self.num_classes = len(self._classes)
         self.class_convert = dict(zip(self._classes, xrange(self.num_classes)))
         self.total_roidb = []
@@ -607,15 +607,15 @@ class dataset_STI_train(object):  # read txt files one by one
             print 'Loaded the STi dataset from pkl cache files ...'
             with open(train_cache_file, 'rb') as fid:
                 train_set = cPickle.load(fid)
-                print '  Train gt set loaded from {}'.format(train_cache_file)
+                print '  train gt set(cnt:{}) loaded from {}'.format(len(train_set),train_cache_file)
 
             with open(valid_cache_file, 'rb') as fid:
                 valid_set = cPickle.load(fid)
-                print '  valid gt set loaded from {}'.format(valid_cache_file)
+                print '  valid gt set(cnt:{}) loaded from {}'.format(len(valid_set),valid_cache_file)
 
             with open(test_cache_file, 'rb') as fid:
                 test_set = cPickle.load(fid)
-                print '  test gt set loaded from {}'.format(test_cache_file)
+                print '  test gt set(cnt:{}) loaded from {}'.format(len(test_set),test_cache_file)
 
             return train_set, valid_set, test_set
 
@@ -626,13 +626,13 @@ class dataset_STI_train(object):  # read txt files one by one
 
         with open(train_cache_file, 'wb') as fid:
             cPickle.dump(train_set, fid, cPickle.HIGHEST_PROTOCOL)
-            print '  Wrote and loaded train gt roidb to {}'.format(train_cache_file)
+            print '  Wrote and loaded train gt roidb(cnt:{}) to {}'.format(len(train_set),train_cache_file)
         with open(valid_cache_file, 'wb') as fid:
             cPickle.dump(valid_set, fid, cPickle.HIGHEST_PROTOCOL)
-            print '  Wrote and loaded valid gt roidb to {}'.format(valid_cache_file)
+            print '  Wrote and loaded valid gt roidb(cnt:{}) to {}'.format(len(valid_set),valid_cache_file)
         with open(test_cache_file, 'wb') as fid:
             cPickle.dump(test_set, fid, cPickle.HIGHEST_PROTOCOL)
-            print '  Wrote and loaded test gt roidb to {}'.format(test_cache_file)
+            print '  Wrote and loaded test gt roidb(cnt:{}) to {}'.format(len(test_set),test_cache_file)
 
         return train_set, valid_set, test_set
 
@@ -704,9 +704,9 @@ class dataset_STI_train(object):  # read txt files one by one
             for i in range(len(filter_type)):
                 res = boxes[:, 7] == float(self.class_convert[filter_type[i]])
                 bool_stack = np.logical_or(bool_stack, res)
-
-            indice_inside = np.where((boxes[:, 0] >= -45.) & (boxes[:, 0] <= 45.)
-                                     & (boxes[:, 1] >= -45.) & (boxes[:, 1] <= 45.)
+            bounding =cfg.DETECTION_RANGE
+            indice_inside = np.where((boxes[:, 0] >= -bounding) & (boxes[:, 0] <= bounding)
+                                     & (boxes[:, 1] >= -bounding) & (boxes[:, 1] <= bounding)
                                      & bool_stack
                                      )[0]
             if len(indice_inside) == 0:
@@ -760,47 +760,6 @@ class dataset_STI_train(object):  # read txt files one by one
                 else:
                     print'File: dataset_sti,function:get_fname_from_label \n  regular expression get more than one qualified file name'
                     exit(23)
-
-    @staticmethod
-    def stiData2pointcloud(Scan):
-        from sensor_msgs.msg import PointCloud, ChannelFloat32
-        from geometry_msgs.msg import Point32
-        point_cloud = Scan.reshape((16, 2016, 4))
-        pointx = point_cloud[:, :, 0].flatten()
-        pointy = point_cloud[:, :, 1].flatten()
-        pointz = point_cloud[:, :, 2].flatten()
-        intensity = point_cloud[:, :, 3].flatten()
-        # labels = point_cloud[:, :, 6].flatten()
-
-        seg_point = PointCloud()
-        seg_point.header.frame_id = 'rslidar'
-        channels1 = ChannelFloat32()
-        seg_point.channels.append(channels1)
-        seg_point.channels[0].name = "rgb"
-        channels2 = ChannelFloat32()
-        seg_point.channels.append(channels2)
-        seg_point.channels[1].name = "intensity"
-
-        for i in range(32256):
-            seg_point.channels[1].values.append(intensity[i])
-            if True:  # labels[i] == 1:
-                seg_point.channels[0].values.append(255)
-                geo_point = Point32(pointx[i], pointy[i], pointz[i])
-                seg_point.points.append(geo_point)
-            else:
-                seg_point.channels[0].values.append(255255255)
-                geo_point = Point32(pointx[i], pointy[i], pointz[i])
-                seg_point.points.append(geo_point)
-                # elif result[i] == 2:
-                #     seg_point.channels[0].values.append(255255255)
-                #     geo_point = Point32(pointx[i], pointy[i], pointz[i])
-                #     seg_point.points.append(geo_point)
-                # elif result[i] == 3:
-                #     seg_point.channels[0].values.append(255000)
-                #     geo_point = Point32(pointx[i], pointy[i], pointz[i])
-                #     seg_point.points.append(geo_point)
-
-        return seg_point
 
 class dataset_STI_test(object):  # read txt files one by one
     def __init__(self, arguments):
@@ -974,47 +933,6 @@ class dataset_STI_test(object):  # read txt files one by one
                     print'File: dataset_sti,function:get_fname_from_label \n  regular expression get more than one qualified file name'
                     exit(23)
 
-    @staticmethod
-    def stiData2pointcloud(Scan):
-        from sensor_msgs.msg import PointCloud, ChannelFloat32
-        from geometry_msgs.msg import Point32
-        point_cloud = Scan.reshape((16, 2016, 4))
-        pointx = point_cloud[:, :, 0].flatten()
-        pointy = point_cloud[:, :, 1].flatten()
-        pointz = point_cloud[:, :, 2].flatten()
-        intensity = point_cloud[:, :, 3].flatten()
-        # labels = point_cloud[:, :, 6].flatten()
-
-        seg_point = PointCloud()
-        seg_point.header.frame_id = 'rslidar'
-        channels1 = ChannelFloat32()
-        seg_point.channels.append(channels1)
-        seg_point.channels[0].name = "rgb"
-        channels2 = ChannelFloat32()
-        seg_point.channels.append(channels2)
-        seg_point.channels[1].name = "intensity"
-
-        for i in range(32256):
-            seg_point.channels[1].values.append(intensity[i])
-            if True:  # labels[i] == 1:
-                seg_point.channels[0].values.append(255)
-                geo_point = Point32(pointx[i], pointy[i], pointz[i])
-                seg_point.points.append(geo_point)
-            else:
-                seg_point.channels[0].values.append(255255255)
-                geo_point = Point32(pointx[i], pointy[i], pointz[i])
-                seg_point.points.append(geo_point)
-                # elif result[i] == 2:
-                #     seg_point.channels[0].values.append(255255255)
-                #     geo_point = Point32(pointx[i], pointy[i], pointz[i])
-                #     seg_point.points.append(geo_point)
-                # elif result[i] == 3:
-                #     seg_point.channels[0].values.append(255000)
-                #     geo_point = Point32(pointx[i], pointy[i], pointz[i])
-                #     seg_point.points.append(geo_point)
-
-        return seg_point
-
 
 def get_data(arguments):
     """Get an imdb (image database) by name."""
@@ -1032,7 +950,9 @@ def get_data(arguments):
 
 if __name__ == '__main__':
     import rospy
-    from sensor_msgs.msg import PointCloud, ChannelFloat32
+    from sensor_msgs.msg import PointCloud
+    from visualization_msgs.msg import MarkerArray,Marker
+    from tools.data_visualize import Boxes_labels_Gen,PointCloud_Gen,pcd_vispy
     arg = edict()
     arg.method = 'train'
     arg.imdb_type = 'sti'
@@ -1041,12 +961,17 @@ if __name__ == '__main__':
 
     rospy.init_node('rostensorflow')
     pub = rospy.Publisher('prediction', PointCloud, queue_size=1000)
+    box_pub = rospy.Publisher('label_boxes', MarkerArray, queue_size=1000)
     rospy.loginfo("ROS begins ...")
 
     idx = 0
     while True:
-        print 'display frame;{}'.format(idx)
+        print 'display frame:{}'.format(idx)
         scans = dataset.get_minibatch(idx, name='train')
-        pointcloud = dataset.stiData2pointcloud(scans['lidar3d_data'])
+        pointcloud = PointCloud_Gen(scans['lidar3d_data'])
+        label_boxes = Boxes_labels_Gen(scans['gt_boxes_3d'],ns='GroundTruth')
+        # pcd_vispy(scans=scans['lidar3d_data'],boxes=scans['gt_boxes_3d'])
         pub.publish(pointcloud)
+        box_pub.publish(label_boxes)
         idx += 1
+
