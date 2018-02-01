@@ -16,7 +16,7 @@ from tools.data_visualize import pcd_vispy,vispy_init,pcd_vispy_client
 # from multiprocessing import Process,Queue
 # MSG_QUEUE = Queue(200)
 ##================================================
-DEBUG = True
+DEBUG = False
 class msg_qt(object):
     def __init__(self,scans=None, img=None,queue=None, boxes=None, name=None,
                  index=0, vis_size=(800, 600), save_img=False,visible=True, no_gt=False):
@@ -165,7 +165,7 @@ class CubicNet_Train(object):
 
         sess.run(tf.global_variables_initializer())
         if self.args.fine_tune:
-            if False:
+            if True:
                 # #full graph restore
                 print 'Loading pre-trained model weights from {:s}'.format(self.args.weights)
                 self.net.load(self.args.weights, sess, self.saver, True)
@@ -249,7 +249,7 @@ class CubicNet_Train(object):
                     pass
                 if DEBUG:
                     scan = blobs['lidar3d_data']
-                    gt_box3d = blobs['gt_boxes_3d'][:, (6, 0, 1, 2, 3, 4, 5)]
+                    gt_box3d = blobs['gt_boxes_3d'][:, (0, 1, 2, 3, 4, 5, 6)]
                     gt_box3d = np.hstack((gt_box3d,np.ones([gt_box3d.shape[0],2])*4))
                     pred_boxes = np.hstack((rpn_rois_[1],cubic_result.reshape(-1,1)*2))
                     bbox = np.vstack((pred_boxes, gt_box3d))

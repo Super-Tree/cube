@@ -7,20 +7,50 @@
 
 import numpy as np
 from network.config import cfg
-from generate_anchors import generate_anchors_bv, generate_anchors
-from rpn.bbox_transform import clip_boxes, bbox_transform_inv_3d, bbox_transform_inv
+from generate_anchors import generate_anchors_bv
+from rpn.bbox_transform import bbox_transform_inv_3d
 from rpn.nms_wrapper import nms
-from tools.transform import bv_anchor_to_lidar, lidar_to_bv, lidar_3d_to_bv, lidar_3d_to_corners, lidar_cnr_to_img
-import pdb
-import yaml
+from tools.transform import bv_anchor_to_lidar, lidar_3d_to_bv
+from numpy import random
 import datetime
 
 DEBUG = False
-"""
-Outputs object detection proposals by applying estimated bounding-box
-transformations to a set of regular boxes (called "anchors").
-"""
 
+def proposal_layer_3d_STI(gt_3d, bounding,num):
+
+    boxes_cnt = num*1
+    boxes_remain = num*1
+
+    xy_pos = 14.0 * random.randn(boxes_cnt,2)
+    z_pos = random.rand(boxes_cnt,1)*0.2-0.2
+    centers = np.hstack((xy_pos,z_pos))
+    score = np.array([0.8])
+    size = np.array(cfg.ANCHOR)
+    category=np.array([0.,0.])
+    gt_boxes=np.array([np.hstack((gt_3d[i][0:3],size,score,np.array([4,4]))) for i in range(gt_3d.shape[0])])
+    gt_cnt = gt_boxes.shape[0]
+
+    rpn_boxes = np.array([np.hstack((centers[i],size,score,category)) for i in range(boxes_cnt)],dtype=np.float32)
+    indice_inside = np.where((rpn_boxes[:, 0] >= -bounding) & (rpn_boxes[:, 0] <= bounding)
+                             & (rpn_boxes[:, 1] >= -bounding) & (rpn_boxes[:, 1] <= bounding)
+                             )[0]
+
+    rpn_filter_boxes = rpn_boxes[indice_inside]
+    rpn_filter_boxes_bv=lidar_3d_to_bv(rpn_filter_boxes[:,0:6])
+    scores = rpn_filter_boxes[:,6:7]
+    beg = datetime.datetime.now()
+    keep = nms(np.hstack((rpn_filter_boxes_bv, scores)), 0.6,force_cpu=False)
+    end2 = datetime.datetime.now()
+    keep = keep[:(boxes_remain-gt_cnt)]
+    rpn_filter_boxes=rpn_filter_boxes[keep]
+
+    blob_3d = np.vstack((gt_boxes,rpn_filter_boxes))
+
+    if DEBUG:
+        print 'boxes number:{}'.format(blob_3d.shape[0])
+        print 'NMS use time:', end2 - beg
+
+    return blob_3d
 
 def proposal_layer_3d(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, gt_bv, cfg_key, _feat_stride=[8, 8]):
     # Algorithm:
@@ -39,7 +69,6 @@ def proposal_layer_3d(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, gt_bv, cfg_k
     # layer_params = yaml.load(self.param_str_)
     beg = datetime.datetime.now()
     _anchors = generate_anchors_bv()
-    #  _anchors = generate_anchors(scales=np.array(anchor_scales))
     _num_anchors = _anchors.shape[0]
     im_info = im_info[0]
     assert rpn_cls_prob_reshape.shape[0] == 1, 'Only single item batches are supported'
@@ -179,8 +208,8 @@ def proposal_layer_3d(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, gt_bv, cfg_k
     # batch inds are 0
     length = proposals_bv.shape[0]
     box_labels,recall= valid_pred(proposals_bv,gt_bv,length,cfg.TRAIN.RPN_POSITIVE_OVERLAP)
-    blob_bv = np.hstack((scores, proposals_bv.astype(np.float32, copy=False),box_labels.reshape(length,-1)))
-    blob_3d = np.hstack((scores, proposals_3d.astype(np.float32, copy=False),box_labels.reshape(length,-1)))
+    blob_bv = np.hstack((proposals_bv.astype(np.float32, copy=False),scores, box_labels.reshape(length,-1)))
+    blob_3d = np.hstack((proposals_3d.astype(np.float32, copy=False),scores, box_labels.reshape(length,-1)))
     end2 = datetime.datetime.now()
 
     if DEBUG:
@@ -188,7 +217,7 @@ def proposal_layer_3d(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, gt_bv, cfg_k
 
     return blob_bv, blob_3d, recall
 
-def generate_rpn(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_stride=[8, 8]):
+def generate_rpn(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_stride=[8, 8]): # for Test processing
 
     test_debug = False
     start = datetime.datetime.now()
@@ -290,8 +319,8 @@ def generate_rpn(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_st
     # Our RPN implementation only supports a single input image, so all
     # batch inds are 0
     length = proposals_bv.shape[0]
-    blob_bv = np.hstack((scores, proposals_bv.astype(np.float32, copy=False),np.zeros((length,1),dtype=np.float32)))
-    blob_3d = np.hstack((scores, proposals_3d.astype(np.float32, copy=False),np.zeros((length,1),dtype=np.float32)))
+    blob_bv = np.hstack((proposals_bv.astype(np.float32, copy=False),scores, np.zeros((length,1),dtype=np.float32)))
+    blob_3d = np.hstack((proposals_3d.astype(np.float32, copy=False),scores, np.zeros((length,1),dtype=np.float32)))
     end = datetime.datetime.now()
 
     if test_debug:
@@ -309,7 +338,6 @@ def _filter_anchors(anchors, im_info, allowed_border):
         (anchors[:, 3] < im_info[0] + allowed_border)    # height
     )[0]
     return inds_inside
-
 
 def _filter_img_boxes(boxes, im_info):
     """Remove all boxes with any side smaller than min_size."""
@@ -338,7 +366,6 @@ def valid_pred(perd_bv,gt_bv,length,thres):
 
     return labels,recall
 
-
 def bbox_overlaps(boxes, query_boxes):
     N = boxes.shape[0]
     K = query_boxes.shape[0]
@@ -366,7 +393,18 @@ def bbox_overlaps(boxes, query_boxes):
 
 
 if __name__ =='__main__':
-    pred = np.array([[1,1,3,3],[10,10,12,12],[7,7,9,9],[17,17,19,19]])
-    gt = np.array([[1,1,2,2,1],[9,9,11,11,1]])
-    label = valid_pred(pred,gt,4,0.5)
-    pass
+    from easydict import EasyDict as edict
+    from dataset.dataset import get_data
+    from tools.data_visualize import pcd_vispy
+    DEBUG=True
+    arg = edict()
+    arg.method = 'train'
+    arg.imdb_type = 'sti'
+    dataset = get_data(arg)
+    idx = 0
+    while True:
+        blob = dataset.get_minibatch(idx,name='train')
+        watch = blob['gt_boxes_3d']
+        boxes3d = proposal_layer_3d_STI(gt_3d=blob['gt_boxes_3d'], bounding=45., num=50)
+        pcd_vispy(scans=blob['lidar3d_data'], boxes=boxes3d, vis_size=(800, 600),visible = True)
+        idx += 1

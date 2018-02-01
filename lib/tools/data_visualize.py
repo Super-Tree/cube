@@ -12,7 +12,20 @@ from os.path import join as path_add
 vispy.set_log_level('CRITICAL', match='-.-')
 folder = path_add(cfg.TEST_RESULT, cfg.RANDOM_STR)
 os.makedirs(folder)
+#  common functions  ===========================
+def box3d_2conner(box):
+    #box : score,x,y,z,l,w,h,type1,type2
+    p0 = np.array([box[0] - float(box[3]) / 2.0, box[1] - float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, ])
+    p1 = np.array([box[0] - float(box[3]) / 2.0, box[1] + float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, ])
+    p2 = np.array([box[0] + float(box[3]) / 2.0, box[1] + float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, ])
+    p3 = np.array([box[0] + float(box[3]) / 2.0, box[1] - float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, ])
 
+    p4 = np.array([box[0] - float(box[3]) / 2.0, box[1] - float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, ])
+    p5 = np.array([box[0] - float(box[3]) / 2.0, box[1] + float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, ])
+    p6 = np.array([box[0] + float(box[3]) / 2.0, box[1] + float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, ])
+    p7 = np.array([box[0] + float(box[3]) / 2.0, box[1] - float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, ])
+
+    return p0,p1,p2,p3,p4,p5,p6,p7
 #  using vispy ============================
 class pcd_vispy_client(object):# TODO: TO BE RE-WRITE
     def __init__(self,QUEUE,title=None, keys='interactive', size=(800,600)):
@@ -108,8 +121,11 @@ class pcd_vispy_client(object):# TODO: TO BE RE-WRITE
             save_img=msg.save_img
             no_gt=msg.no_gt
 
-def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800, 600),save_img=False,visible=True,no_gt=False):
-    canvas = vispy.scene.SceneCanvas(title=name, keys='interactive', size=vis_size,show=visible)
+def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800, 600),save_img=False,visible=True,no_gt=False,multi_vis=False):
+    if multi_vis:
+        canvas = vispy.scene.SceneCanvas(title=name, keys='interactive', size=vis_size,show=True)
+    else:
+        canvas = vispy.scene.SceneCanvas(title=name, keys='interactive', size=vis_size,show=visible)
     grid = canvas.central_widget.add_grid()
     vb = grid.add_view(row=0, col=0, row_span=2)
     vb_img = grid.add_view(row=1, col=0)
@@ -137,40 +153,44 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
     vb_img.add(image)
 
     if boxes is not None:
-        boxes = boxes.reshape(-1, 9)
-        gt_indice = np.where(boxes[:, -1] == 2)[0]
+        if len(boxes.shape) ==1:
+            boxes = boxes.reshape(1,-1)
+        gt_indice = np.where(boxes[:, -1] == 4)[0]
         gt_cnt = len(gt_indice)
         i = 0
         for box in boxes:
-            radio = max(box[0] - 0.5, 0.005)*2.0
+            radio = max(box[6] - 0.5, 0.005)*2.0
             color = (0, radio, 0, 1)  # Green
 
             if box[-1] == 4:  #  gt boxes
                 i = i + 1
-                vsp_box = visuals.Box(width=box[4],  depth=box[5],height=box[6], color=(0.6, 0.8, 0.0, 0.3))#edge_color='yellow')
+                vsp_box = visuals.Box(width=box[3],  depth=box[4],height=box[5], color=(0.6, 0.8, 0.0, 0.1),edge_color='pink')
                 mesh_box = vsp_box.mesh.mesh_data
                 mesh_border_box = vsp_box.border.mesh_data
                 vertices = mesh_box.get_vertices()
-                center = np.array([box[1], box[2], box[3]], dtype=np.float32)
+                center = np.array([box[0], box[1], box[2]], dtype=np.float32)
                 vtcs = np.add(vertices, center)
                 mesh_border_box.set_vertices(vtcs)
                 mesh_box.set_vertices(vtcs)
                 vb.add(vsp_box)
                 if False:
                     text = visuals.Text(text='gt: ({}/{})'.format(i, gt_cnt), color='white', face='OpenSans', font_size=12,
-                                        pos=[box[1], box[2], box[3]],anchor_x='left', anchor_y='top', font_manager=None)
+                                        pos=[box[0], box[1], box[2]],anchor_x='left', anchor_y='top', font_manager=None)
                     vb.add(text)
-
-            if (box[-1]+box[-2]) == 0: # True negative cls rpn divided by cube
+            elif len(box)!=9:
+                vb.add(line_box(box, color='pink'))
+            elif (box[-1]+box[-2]) == 0: # True negative cls rpn divided by cube
                 vb.add(line_box(box,color=color))
-            if (box[-1]+box[-2]) == 1: # False negative cls rpn divided by cube
+            elif (box[-1]+box[-2]) == 1: # False negative cls rpn divided by cube
                 vb.add(line_box(box,color='red'))
-            if (box[-1]+box[-2]) == 2: # False positive cls rpn divided by cube
+            elif (box[-1]+box[-2]) == 2: # False positive cls rpn divided by cube
                 if no_gt:
+                    pass
                     vb.add(line_box(box, color='yellow'))
                 else:
+                    pass
                     vb.add(line_box(box, color='blue'))
-            if (box[-1]+box[-2]) == 3: # True positive cls rpn divided by cube
+            elif (box[-1]+box[-2]) == 3: # True positive cls rpn divided by cube
                 vb.add(line_box(box,color='yellow'))
 
     if save_img:
@@ -201,22 +221,127 @@ def vispy_init():
     v = vispy.app.Canvas()
 
 def line_box(box,color=(0, 1, 0, 0.1)):
-    p0 = np.array([box[1] - float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
-    p1 = np.array([box[1] - float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
-    p2 = np.array([box[1] + float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
-    p3 = np.array([box[1] + float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] - float(box[6]) / 2.0, ])
-
-    p4 = np.array([box[1] - float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] + float(box[6]) / 2.0, ])
-    p5 = np.array([box[1] - float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, box[3] + float(box[6]) / 2.0, ])
-    p6 = np.array([box[1] + float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, box[3] + float(box[6]) / 2.0, ])
-    p7 = np.array([box[1] + float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, box[3] + float(box[6]) / 2.0, ])
-
+    p0, p1, p2, p3, p4, p5, p6, p7=box3d_2conner(box)
     pos = np.vstack((p0,p1,p2,p3,p0,p4,p5,p6,p7,p4,p5,p1,p2,p6,p7,p3))
     lines = visuals.Line(pos=pos, connect='strip', width=1, color=color, antialias=True,method='gl')
 
     return lines
 
+#  using RViz  ===========================
+
+def Boxes_labels_Gen(box_es,ns,frame_id='rslidar'):
+    from visualization_msgs.msg import Marker,MarkerArray
+    from geometry_msgs.msg import Point,Vector3,Quaternion
+    from std_msgs.msg import ColorRGBA
+
+    def one_box(box_,color,index):
+        marker = Marker()
+        marker.id = index
+        marker.ns= ns
+        marker.header.frame_id = frame_id
+        marker.type = marker.LINE_STRIP
+        marker.action = marker.ADD
+        # marker.frame_locked=False
+        # marker scale
+        marker.scale = Vector3(0.04, 0.04, 0.04)  # x,yz
+        # marker color
+        marker.color = ColorRGBA(color[0], color[1], color[2], color[3])  # r,g,b,a
+        # marker orientaiton
+        marker.pose.orientation = Quaternion(0., 0., 0., 1.)  # x,y,z,w
+        # marker position
+        marker.pose.position = Point(0., 0., 0.)  # x,y,z
+        # marker.lifetime = rospy.Duration(0.1)
+        p0, p1, p2, p3, p4, p5, p6, p7 = box3d_2conner(box_)
+        # marker line points
+        marker.points = []
+        for p in [p0, p1, p2, p3, p0, p4, p5, p6, p7, p4, p5, p1, p2, p6, p7, p3]:
+            marker.points.append(Point(p[0], p[1], p[2], ))
+
+        return marker
+
+    def delete_all_markers(box_,color,index):
+        marker = Marker()
+        marker.id = index
+        marker.ns = ns
+        marker.header.frame_id = frame_id
+        marker.type = marker.LINE_STRIP
+        marker.action = 3 # marker.DELETEALL: deletes all objects
+        # marker.frame_locked=False
+        # marker scale
+        marker.scale = Vector3(0.04, 0.04, 0.04)  # x,yz
+        # marker color
+        marker.color = ColorRGBA(color[0], color[1], color[2], color[3])  # r,g,b,a
+        # marker orientaiton
+        marker.pose.orientation = Quaternion(0., 0., 0., 1.)  # x,y,z,w
+        # marker position
+        marker.pose.position = Point(0., 0., 0.)  # x,y,z
+        # marker.lifetime = rospy.Duration(0.1)
+        p0, p1, p2, p3, p4, p5, p6, p7 = box3d_2conner(box_)
+        # marker line points
+        marker.points = []
+        for p in [p0, p1, p2, p3, p0, p4, p5, p6, p7, p4, p5, p1, p2, p6, p7, p3]:
+            marker.points.append(Point(p[0], p[1], p[2], ))
+
+        return marker
+
+    label_boxes = MarkerArray()
+    label_boxes.markers=[]
+    for idx,_box in enumerate(box_es):
+        if _box[-1]==4:
+            color_ = (1., 1., 0., 1)  # yellow
+        else:
+            color_ = (0., 1., 0., 1)  # green
+        if idx == 0:
+            label_boxes.markers.append(delete_all_markers(_box, color_, idx))
+        label_boxes.markers.append(one_box(_box,color_,idx))
+
+    return label_boxes
+
+def PointCloud_Gen(points,frameID='rslidar'):
+    from sensor_msgs.msg import PointCloud, ChannelFloat32
+    from geometry_msgs.msg import Point32
+
+    ##=========PointCloud===============
+    points.dtype = np.float32
+    point_cloud = points.reshape((-1, 4))
+    pointx = point_cloud[:, 0].flatten()
+    pointy = point_cloud[:, 1].flatten()
+    pointz = point_cloud[:, 2].flatten()
+    intensity = point_cloud[:, 3].flatten()
+    # labels = point_cloud[:,6].flatten()
+
+    seg_point = PointCloud()
+    seg_point.header.frame_id = frameID
+    channels1 = ChannelFloat32()
+    seg_point.channels.append(channels1)
+    seg_point.channels[0].name = "rgb"
+    channels2 = ChannelFloat32()
+    seg_point.channels.append(channels2)
+    seg_point.channels[1].name = "intensity"
+
+    for i in range(point_cloud.shape[0]):
+        seg_point.channels[1].values.append(intensity[i])
+        if True:  # labels[i] == 1:
+            seg_point.channels[0].values.append(255)
+            geo_point = Point32(pointx[i], pointy[i], pointz[i])
+            seg_point.points.append(geo_point)
+        else:
+            seg_point.channels[0].values.append(255255255)
+            geo_point = Point32(pointx[i], pointy[i], pointz[i])
+            seg_point.points.append(geo_point)
+            # elif result[i] == 2:
+            #     seg_point.channels[0].values.append(255255255)
+            #     geo_point = Point32(pointx[i], pointy[i], pointz[i])
+            #     seg_point.points.append(geo_point)
+            # elif result[i] == 3:
+            #     seg_point.channels[0].values.append(255000)
+            #     geo_point = Point32(pointx[i], pointy[i], pointz[i])
+            #     seg_point.points.append(geo_point)
+
+    return seg_point
+
 #  using mayavi ===========================
+
 def lidar_3d_to_corners(pts_3D):
     """
     convert pts_3D_lidar (x, y, z, l, w, h) to
@@ -367,6 +492,7 @@ def show_bbox(bv_image, bv_gt, anchors, bv_box_pred=None):
     return bv_image
 
 #  normal functions ======================
+
 def test_show_rpn_tf(img, box_pred=None):
     bv_data = tf.reshape(img[:, :, :, 8],(601, 601, 1))
     bv_data = scales_to_255(bv_data,0,3,tf.float32)
@@ -380,3 +506,16 @@ def test_show_bbox(bv_image, bv_box):
         cv2.rectangle(bv_image, (bv_box[i, 1], bv_box[i, 2]), (bv_box[i, 3], bv_box[i, 4]), color=color_pre)
 
     return bv_image
+
+
+if __name__ == '__main__':
+    import rospy
+    from visualization_msgs.msg import Marker, MarkerArray
+
+    boxes =np.array([[1,1,1,1,1,1,1,1,1],[1,3,3,1,1,1,1,1,1]])
+    rospy.init_node('node_labels')
+    label_pub = rospy.Publisher('labels', MarkerArray, queue_size=100)
+    rospy.loginfo('Ros begin ...')
+    label_box = Boxes_labels_Gen(boxes,ns='test_box')
+    while True:
+        label_pub.publish(label_box)
