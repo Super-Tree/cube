@@ -145,7 +145,7 @@ class dataset_KITTI_train(object):  # read txt files one by one
             print 'Dataset will be loaded from existing cache file'
             with open(cache_file, 'rb') as fid:
                 train_roidb = cPickle.load(fid)
-            print '  Train gt roidb loaded from {}'.format(cache_file)
+            print '  train gt roidb loaded from {}'.format(cache_file)
             with open(val_cache_file, 'rb') as fid:
                 valid_roidb = cPickle.load(fid)
             print '  valid gt roidb loaded from {}'.format(val_cache_file)

@@ -234,13 +234,11 @@ class CubicNet_Train(object):
                     trace_file.write(trace.generate_chrome_trace_format(show_memory=False))
                     trace_file.close()
                 if iter % cfg.TRAIN.ITER_DISPLAY == 0:
-                    print 'Iter: %d / %d, loss: %.3f, rpn_recall: %.3f,' % \
-                          (iter, self.args.epoch_iters * self.epoch,loss_,recall_RPN / cfg.TRAIN.ITER_DISPLAY)
+                    print 'Iter: %d/%d, speed: %.3fs/iter, loss: %.3f, rpn_recall: %.3f, cubic classify precise: %.3f,recall: %.3f' % \
+                          (iter, self.args.epoch_iters * self.epoch,timer.average_time,loss_,recall_RPN / cfg.TRAIN.ITER_DISPLAY,cubic_car_cls_prec,cubic_car_cls_recall)
                     recall_RPN = 0.
-                    print 'Cubic classify precise: {:.3f}  recall: {:.3f}'.format(cubic_car_cls_prec, cubic_car_cls_recall)
-                    print 'Speed: {:.3f}s / iter'.format(timer.average_time)
-                    print 'divine: ', cubic_result
-                    print 'labels: ', cubic_cls_labels_
+                    print 'divine: ', str(cubic_result).translate(None,'\n')
+                    print 'labels: ', str(cubic_cls_labels_).translate(None,'\n'),'\n'
                 if iter % 20 == 0 and cfg.TRAIN.TENSORBOARD:
                     train_writer.add_summary(merged_, iter)
                     pass
