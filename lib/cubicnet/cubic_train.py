@@ -258,12 +258,12 @@ class CubicNet_Train(object):
             if cfg.TRAIN.USE_VALID:
                 with tf.name_scope('valid_cubic_' + str(epo_cnt + 1)):
                     print 'Valid the net at the end of epoch_{} ...'.format(epo_cnt + 1)
-                    # roi_bv = self.net.get_output('rpn_rois')[0]
-                    # bv_anchors = self.net.get_output('rpn_anchors_label')[2]
-                    # pred_rpn_ = show_rpn_tf(self.net.lidar_bv_data, self.net.gt_boxes_bv, bv_anchors, roi_bv)
-                    # pred_rpn = tf.reshape(pred_rpn_,(1, 601, 601, -1))
-                    # predicted_bbox = tf.summary.image('predict_bbox_bv', pred_rpn)
-                    # valid_result = tf.summary.merge([predicted_bbox])
+                    roi_bv = self.net.get_output('rpn_rois')[0]
+                    cubu_bv = np.hstack((roi_bv,cubic_cls_labels.reshape(-1,1)))
+                    pred_rpn_ = show_rpn_tf(self.net.lidar_bv_data,cubu_bv)
+                    pred_rpn = tf.reshape(pred_rpn_,(1, 601, 601, -1))
+                    predicted_bbox = tf.summary.image('predict_bbox_bv', pred_rpn)
+                    valid_result = tf.summary.merge([predicted_bbox])
                     recalls = self.net.get_output('rpn_rois')[2]
                     pred_tp_cnt, gt_cnt = 0., 0.
                     hist = np.zeros((cfg.NUM_CLASS, cfg.NUM_CLASS), dtype=np.float32)
@@ -279,8 +279,8 @@ class CubicNet_Train(object):
                             self.net.gt_boxes_3d: blobs['gt_boxes_3d'],
                             self.net.gt_boxes_corners: blobs['gt_boxes_corners'],
                             self.net.calib: blobs['calib']}
-                        cubic_cls_score_, cubic_cls_labels_, recalls_ = sess.run(
-                            [cubic_cls_score, cubic_cls_labels, recalls], feed_dict=feed_dict_)
+                        cubic_cls_score_, cubic_cls_labels_, recalls_,valid_result_ = sess.run(
+                            [cubic_cls_score, cubic_cls_labels, recalls,valid_result], feed_dict=feed_dict_)
                         # train_writer.add_summary(valid, data_idx)
 
                         pred_tp_cnt = pred_tp_cnt + recalls_[1]
@@ -299,6 +299,8 @@ class CubicNet_Train(object):
                             print('    class car precision = {:.3f}  recall = {:.3f}'.format(
                                 (one_hist[1, 1] / (one_hist[1, 1] + one_hist[0, 1])),
                                 (one_hist[1, 1] / (one_hist[1, 1] + one_hist[1, 0]))))
+                        if data_idx % 20 ==0 and cfg.TRAIN.TENSORBOARD:
+                            train_writer.add_summary(valid_result_, data_idx/20+epo_cnt*1000)
 
                 precise_total = hist[1, 1] / (hist[1, 1] + hist[0, 1])
                 recall_total = hist[1, 1] / (hist[1, 1] + hist[1, 0])

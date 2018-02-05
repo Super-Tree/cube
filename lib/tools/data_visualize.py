@@ -459,40 +459,20 @@ def draw_3dPoints_box(lidar=None, Boxes3D=None, is_grid=True, fig=None, draw_axi
 
     mlab.show()
 
-def show_rpn_tf(img, gt_bv_box, anchors, box_pred=None):
+def show_rpn_tf(img, cls_bv):#TODO
     bv_data = tf.reshape(img[:, :, :, 8], (601, 601, 1))
     bv_data = scales_to_255(bv_data, 0, 3, tf.float32)
     bv_img = tf.reshape(tf.stack([bv_data, bv_data, bv_data], 3), (601, 601, 3))
-    if gt_bv_box.shape[0] == 0:
-        print 'The gt is empty, please debug the code'
-    if box_pred is not None:
-        return tf.py_func(show_bbox, [bv_img, gt_bv_box, anchors, box_pred], tf.float32)
 
-    return tf.py_func(show_bbox, [bv_img, gt_bv_box, anchors], tf.float32)
+    return tf.py_func(show_bbox, [bv_img, cls_bv], tf.float32)
 
-def show_bbox(bv_image, bv_gt, anchors, bv_box_pred=None):
-    cnt = anchors.shape[0]
-    pos = 0
-    neg = 0
+def show_bbox(bv_image, cls_bv):
+    cnt = cls_bv.shape[0]
     for i in range(cnt):
-        if anchors[i, 0] == 0:
-            neg = neg + 1
-            cv2.rectangle(bv_image, (anchors[i, 1], anchors[i, 2]), (anchors[i, 3], anchors[i, 4]), color=(0, 30, 0))
+        if cls_bv[i, 0] == 0:
+            cv2.rectangle(bv_image, (cls_bv[i, 0], cls_bv[i, 1]), (cls_bv[i, 2], cls_bv[i, 3]), color=(0, 30, 0))
         else:
-            pos = pos + 1
-            cv2.rectangle(bv_image, (anchors[i, 1], anchors[i, 2]), (anchors[i, 3], anchors[i, 4]), color=(60, 60, 0))
-
-    # print "positive RPN ", pos, 'negative ', neg
-    if bv_box_pred is not None:
-        for i in range(bv_box_pred.shape[0]):
-            a = bv_box_pred[i, 0] * 255
-            color_pre = (a, a, a)
-            cv2.rectangle(bv_image, (bv_box_pred[i, 1], bv_box_pred[i, 2]), (bv_box_pred[i, 3], bv_box_pred[i, 4]),
-                          color=color_pre)
-
-    for i in range(bv_gt.shape[0]):
-        cv2.rectangle(bv_image, (bv_gt[i, 0], bv_gt[i, 1]), (bv_gt[i, 2], bv_gt[i, 3]), color=(255, 0, 255))
-
+            cv2.rectangle(bv_image, (cls_bv[i, 0], cls_bv[i, 1]), (cls_bv[i, 2], cls_bv[i, 3]), color=(60, 60, 0))
     # filePath = "/media/disk4/deeplearningoflidar/he/CombiNet-he/output/"
     # cv2.imwrite(filePath+fileName,bv_image)
     return bv_image
