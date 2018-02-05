@@ -271,7 +271,6 @@ class point_cloud(object):
             fmt = 'II'
             compressed_size, uncompressed_size = struct.unpack(fmt, f.read(struct.calcsize(fmt)))
             compressed_data = f.read(compressed_size)
-            # TODO what to use as second argument? if buf is None
             # (compressed > uncompressed)
             # should we read buf as raw binary?
             buf = lzf.decompress(compressed_data, uncompressed_size)

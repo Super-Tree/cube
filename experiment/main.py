@@ -12,9 +12,14 @@ from dataset.dataset import get_data
 from network.train_net import train_net
 from network.test_net import test_net
 
+from network.train_net_sti import train_net_sti
+from network.test_net_sti import test_net_sti
+
 from cubicnet.cubic_train import network_training
 from cubicnet.cubic_test import network_testing
 
+from cubicnet.cubic_train_sti import network_training_sti
+from cubicnet.cubic_test_sti import network_testing_sti
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a CombineNet network')
@@ -25,7 +30,7 @@ def parse_args():
     parser.add_argument('--weights', dest='weights',help='which network weights',
                         default='/home/hexindong/ws_dl/pyProj/cubic-local/MODEL_weights/CUBIC_2/weights/CubicNet_iter_85000.ckpt', type=str)
     parser.add_argument('--epoch_iters', dest='epoch_iters',help='number of iterations to train',
-                        default=18, type=int)
+                        default=100, type=int)
     parser.add_argument('--imdb_type', dest='imdb_type',help='dataset to train on(sti/kitti)', choices=['kitti', 'sti'],
                         default='kitti', type=str)
 
@@ -65,23 +70,29 @@ def checkArgs(Args):
             print "  Specify the testing network weights!"
             sys.exit(3)
         else:
-            print "  Test the weight: \n {}".format(Args.weights)
+            print "Test the weight: \n {}".format(Args.weights)
     elif Args.fine_tune:
             if Args.weights is None:
                 print "  Specify the finetune network weights!"
                 sys.exit(4)
             else:
-                print "  Finetune the weight: \n     {}".format(Args.weights)
+                print "Finetune the weight: \n   {}".format(Args.weights)
     else:
-            print "  The network will RETRAIN from empty ! ! "
+            print "The network will RETRAIN from empty ! ! "
 
 
 def get_network(arguments):
     """Get a network by name."""
     if arguments.method == 'train':
-        return train_net(arguments.gpu_id)
+        if arguments.imdb_type == 'kitti':
+            return train_net(arguments)
+        else:
+            return train_net_sti(arguments)
     else:
-        return test_net(arguments.gpu_id,trainable=False)
+        if arguments.imdb_type == 'kitti':
+            return test_net(arguments,trainable=False)
+        else:
+            return test_net_sti(arguments)
         # print "Loading model from .meta ...."
         # return None # hxd: when testting,we needn't to reload the model,using .meta file to restore the graph
 
@@ -95,6 +106,12 @@ if __name__ == '__main__':
     network = get_network(args)  # load network model
 
     if args.method == 'train':
-        network_training(network, data_set, args)
+        if args.imdb_type == 'kitti':
+            network_training(network, data_set, args)
+        else:
+            network_training_sti(network, data_set, args)
     elif args.method == 'test':
-        network_testing(network, data_set, args)
+        if args.imdb_type == 'kitti':
+            network_testing(network, data_set, args)
+        else:
+            network_testing_sti(network, data_set, args)

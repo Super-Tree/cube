@@ -379,18 +379,18 @@ class Network(object):
         return rpn_rois_bv, rpn_rois_3d
 
     @layer
-    def cubic_grid(self, input, name):
+    def cubic_grid(self, input,method, name):
         lidar_points = input[0]
         rpn_3d_boxes = input[1][1]
         with tf.variable_scope(name, reuse=tf.AUTO_REUSE) as scope:
-            stack_cubic = tf.py_func(cubic_rpn_grid_pyfc, [lidar_points, rpn_3d_boxes], tf.float32)
+            stack_cubic = tf.py_func(cubic_rpn_grid_pyfc, [lidar_points, rpn_3d_boxes,method], tf.float32)
         return stack_cubic
 
     @layer
     def cubic_cnn(self,input, name):
         with tf.variable_scope(name, reuse=tf.AUTO_REUSE) as scope:
             batch_size = tf.shape(input)  # 5 numbers
-            cubic3dcnn = cubic(batch_size, [32, 64, 128, 64,2])
+            cubic3dcnn = cubic(batch_size, [64, 128, 128, 64,2])
             result = cubic3dcnn.apply(input)
         return result
 

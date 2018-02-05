@@ -26,7 +26,6 @@ def rpn_regular_extract_tf(lidar3d, rpn, im_info=None):
     box_cnt = pred_box.shape[0]
     ToClassifyPoints = np.zeros([box_cnt, cfg.RPN_POINTS_REMAIN, 4], dtype=np.float32)
     # TODO: for deal with variable density of points(1000~60),we take two schemes
-
     # for i, boxes in enumerate(pred_box):
     #     indices = check_inside(lidar3d, boxes)
     #     if indices.shape[0] > cfg.RPN_POINTS_REMAIN:

@@ -2,9 +2,6 @@
 Read and write PCL .pcd files in python.
 dimatura@cmu.edu, 2013
 
-TODO deal properly with padding
-TODO deal properly with multicount fields
-TODO better support for rgb nonsense
 """
 
 import re
@@ -97,7 +94,6 @@ def parse_header(lines):
             metadata[key] = map(float, value.split())
         elif key == 'data':
             metadata[key] = value.strip().lower()
-        # TODO apparently count is not required?
     # add some reasonable defaults
     if 'count' not in metadata:
         metadata['count'] = [1]*len(metadata['fields'])
@@ -188,7 +184,6 @@ def _build_dtype(metadata):
     """ build numpy structured array dtype from pcl metadata.
     note that fields with count > 1 are 'flattened' by creating multiple
     single-count fields.
-    TODO: allow 'proper' multi-count fields.
     """
     fieldnames = []
     typenames = []
@@ -245,7 +240,6 @@ def parse_binary_compressed_pc_data(f, dtype, metadata):
     compressed_size, uncompressed_size =\
         struct.unpack(fmt, f.read(struct.calcsize(fmt)))
     compressed_data = f.read(compressed_size)
-    # TODO what to use as second argument? if buf is None
     # (compressed > uncompressed)
     # should we read buf as raw binary?
     buf = lzf.decompress(compressed_data, uncompressed_size)
@@ -321,7 +315,6 @@ def point_cloud_to_fileobj(pc, fileobj, data_compression=None):
     elif metadata['data'].lower() == 'binary':
         fileobj.write(pc.pc_data.tostring('C'))
     elif metadata['data'].lower() == 'binary_compressed':
-        # TODO
         # a '_' field is ignored by pcl and breakes compressed point clouds.
         # changing '_' to '_padding' or other name fixes this.
         # admittedly padding shouldn't be compressed in the first place
@@ -336,7 +329,6 @@ def point_cloud_to_fileobj(pc, fileobj, data_compression=None):
         buf = lzf.compress(uncompressed)
         if buf is None:
             # compression didn't shrink the file
-            # TODO what do to do in this case when reading?
             buf = uncompressed
             compressed_size = uncompressed_size
         else:
@@ -412,8 +404,6 @@ def save_xyz_intensity_label(pc, fname, use_default_lbl=False):
 
 
 def save_txt(pc, fname, header=True):
-    """ TODO support multi-count fields
-    """
     with open(fname, 'w') as f:
         if header:
             header_lst = []
@@ -452,7 +442,6 @@ def add_fields(pc, metadata, pc_data):
     new_metadata['type'].extend(metadata['type'])
 
     # parse metadata to add
-    # TODO factor this
     fieldnames, typenames = [], []
     for f, c, t, s in zip(metadata['fields'],
                           metadata['count'],
@@ -475,9 +464,6 @@ def add_fields(pc, metadata, pc_data):
         new_data[n] = pc.pc_data[n]
     for n, n_tmp in zip(fieldnames, pc_data.dtype.names):
         new_data[n] = pc_data[n_tmp]
-
-    # TODO maybe just all the metadata in the dtype.
-    # TODO maybe use composite structured arrays for fields with count > 1
     newpc = PointCloud(new_metadata, new_data)
     return newpc
 
@@ -487,7 +473,6 @@ def cat_point_clouds(pc1, pc2):
         raise ValueError("Pointclouds must have same fields")
     new_metadata = pc1.get_metadata()
     new_data = np.concatenate((pc1.pc_data, pc2.pc_data))
-    # TODO this only makes sense for unstructured pc?
     new_metadata['width'] = pc1.width+pc2.width
     new_metadata['points'] = pc1.points+pc2.points
     pc3 = PointCloud(new_metadata, new_data)
@@ -577,7 +562,6 @@ def decode_rgb_from_pcl(rgb):
 
 
 def make_xyz_label_point_cloud(xyzl, label_type='f'):
-    """ TODO i labels? """
     md = {'version': .7,
           'fields': ['x', 'y', 'z', 'label'],
           'count': [1, 1, 1, 1],
@@ -594,7 +578,6 @@ def make_xyz_label_point_cloud(xyzl, label_type='f'):
         md['type'] = ['F', 'F', 'F', 'U']
     else:
         raise ValueError('label type must be F or U')
-    # TODO use .view()
     xyzl = xyzl.astype(np.float32)
     dt = np.dtype([('x', np.float32), ('y', np.float32), ('z', np.float32),
                    ('label', np.float32)])
@@ -669,7 +652,6 @@ class PointCloud(object):
     def to_msg(self):
         if not HAS_SENSOR_MSGS:
             raise NotImplementedError('ROS sensor_msgs not found')
-        # TODO is there some metadata we want to attach?
         return numpy_pc2.array_to_pointcloud2(self.pc_data)
 
     @staticmethod
@@ -705,7 +687,6 @@ class PointCloud(object):
                 numpy_type_to_pcd_type[pc_data.dtype.fields[field][0]]
             md['type'].append(type_)
             md['size'].append(size_)
-            # TODO handle multicount
             md['count'].append(1)
         md['width'] = len(pc_data)
         md['points'] = len(pc_data)
@@ -734,7 +715,6 @@ class PointCloud(object):
             t, s = pc2_type_to_pcd_type[field.datatype]
             md['type'].append(t)
             md['size'].append(s)
-            # TODO handle multicount correctly
             if field.count > 1:
                 warnings.warn('fields with count > 1 are not well tested')
             md['count'].append(field.count)

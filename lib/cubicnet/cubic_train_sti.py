@@ -17,25 +17,8 @@ from tools.data_visualize import pcd_vispy,vispy_init,pcd_vispy_client
 # MSG_QUEUE = Queue(200)
 ##================================================
 DEBUG = False
-class msg_qt(object):
-    def __init__(self,scans=None, img=None,queue=None, boxes=None, name=None,
-                 index=0, vis_size=(800, 600), save_img=False,visible=True, no_gt=False):
-        self.scans=scans,
-        self.img=img,
-        self.boxes=boxes,
-        self.name=name,
-        self.index=index,
-        self.vis_size=vis_size,
-        self.save_img=save_img,
-        self.visible=visible,
-        self.no_gt=no_gt,
-        self.queue=queue
 
-    def check(self):
-        pass
-
-
-class CubicNet_Train(object):
+class CubicNet_Train_sti(object):
     def __init__(self, network, data_set, args):
         self.saver = tf.train.Saver(max_to_keep=100)
         self.net = network
@@ -50,11 +33,11 @@ class CubicNet_Train(object):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
         if not final:
-            filename = os.path.join(output_dir, 'CubicNet_iter_{:d}'.format(iter) + '.ckpt')
+            filename = os.path.join(output_dir, 'CubicNet_STi_iter_{:d}'.format(iter) + '.ckpt')
             self.saver.save(sess, filename)
             print 'Wrote snapshot to: {:s}'.format(filename)
         else:
-            filename = os.path.join(output_dir, 'CombiNet_iter_{:d}_final'.format(iter) + '.ckpt')
+            filename = os.path.join(output_dir, 'CombiNet_STi_iter_{:d}_final'.format(iter) + '.ckpt')
             self.saver.save(sess, filename)
 
     @staticmethod
@@ -79,62 +62,29 @@ class CubicNet_Train(object):
 
     def training(self, sess, train_writer):
         with tf.name_scope('loss_cubic'):
-            rpn_cls_score = tf.reshape(self.net.get_output('rpn_cls_score'), [-1, 2])
-            rpn_label = tf.reshape(self.net.get_output('rpn_anchors_label')[0], [-1])
-
-            rpn_keep = tf.where(tf.not_equal(rpn_label, -1))
-            rpn_bbox_keep = tf.where(tf.equal(rpn_label, 1))  # only regression positive anchors
-
-            rpn_cls_score = tf.reshape(tf.gather(rpn_cls_score, rpn_keep), [-1, 2])
-            rpn_label = tf.reshape(tf.gather(rpn_label, rpn_keep), [-1])
-
             cubic_cls_score = tf.reshape(self.net.get_output('cubic_cnn'), [-1, 2])
-            cubic_cls_labels = tf.reshape(tf.cast(self.net.get_output('rpn_rois')[0][:, -1], tf.int64), [-1])
+            cubic_cls_labels = tf.reshape(tf.cast(self.net.get_output('rpn_rois')[:,-2], tf.int64), [-1])
 
             if not cfg.TRAIN.FOCAL_LOSS:
-                rpn_cross_entropy = tf.reduce_mean(
-                    tf.nn.sparse_softmax_cross_entropy_with_logits(logits=rpn_cls_score, labels=rpn_label))
-
                 cubic_cross_entropy = tf.reduce_mean(
                     tf.nn.sparse_softmax_cross_entropy_with_logits(logits=cubic_cls_score, labels=cubic_cls_labels))
             else:
                 # alpha = [0.75,0.25]  # 0.25 for label=1
                 gamma = 2
-                rpn_cls_probability = tf.nn.softmax(rpn_cls_score)
                 cubic_cls_probability = tf.nn.softmax(cubic_cls_score)
-
                 # formula :  Focal Loss for Dense Object Detection: FL(p)= -((1-p)**gama)*log(p)
-                rpn_cross_entropy = tf.reduce_mean(-tf.reduce_sum(
-                    tf.one_hot(rpn_label, depth=2) * ((1 - rpn_cls_probability) ** gamma) * tf.log(
-                        [cfg.EPS, cfg.EPS] + rpn_cls_probability), axis=1))
-
                 cubic_cross_entropy = tf.reduce_mean(-tf.reduce_sum(
                     tf.one_hot(cubic_cls_labels, depth=2) * ((1 - cubic_cls_probability) ** gamma) * tf.log(
                         [cfg.EPS, cfg.EPS] + cubic_cls_probability), axis=1))
-
-            # bounding box regression L1 loss
-            rpn_bbox_pred = self.net.get_output('rpn_bbox_pred')
-            rpn_bbox_targets = self.net.get_output('rpn_anchors_label')[1]
-            rpn_bbox_pred = tf.reshape(tf.gather(tf.reshape(rpn_bbox_pred, [-1, 3]), rpn_bbox_keep), [-1, 3])
-            rpn_bbox_targets = tf.reshape(tf.gather(tf.reshape(rpn_bbox_targets, [-1, 3]), rpn_bbox_keep), [-1, 3])
-
-            rpn_smooth_l1 = self.modified_smooth_l1(3.0, rpn_bbox_pred, rpn_bbox_targets)
-            rpn_loss_box = tf.multiply(tf.reduce_mean(tf.reduce_sum(rpn_smooth_l1, reduction_indices=[1])), 1.0)
-
-            # loss = rpn_cross_entropy + rpn_loss_box + cubic_cross_entropy
             loss = cubic_cross_entropy
 
         with tf.name_scope('train_op'):
             global_step = tf.Variable(1, trainable=False, name='Global_Step')
-            lr = tf.train.exponential_decay(cfg.TRAIN.LEARNING_RATE, global_step, 10000, 0.89, name='decay-Lr')
+            lr = tf.train.exponential_decay(cfg.TRAIN.LEARNING_RATE, global_step, 10000, 0.996, name='decay-Lr')
             train_op = tf.train.AdamOptimizer(lr).minimize(loss, global_step=global_step)
 
         with tf.name_scope('train_cubic'):
             tf.summary.scalar('total_loss', loss)
-            # tf.summary.scalar('rpn_loss_box', rpn_loss_box)
-            # tf.summary.scalar('rpn_cross_entropy', rpn_cross_entropy)
-            # tf.summary.scalar('cubic_cross_entropy', cubic_cross_entropy)
-            recall_RPN = 0.
             # bv_anchors = self.net.get_output('rpn_anchors_label')[2]
             # roi_bv = self.net.get_output('rpn_rois')[0]
             # data_bv = self.net.lidar_bv_data
@@ -165,7 +115,7 @@ class CubicNet_Train(object):
 
         sess.run(tf.global_variables_initializer())
         if self.args.fine_tune:
-            if False:
+            if True:
                 # #full graph restore
                 print 'Loading pre-trained model weights from {:s}'.format(self.args.weights)
                 self.net.load(self.args.weights, sess, self.saver, True)
@@ -186,7 +136,7 @@ class CubicNet_Train(object):
                         except ValueError:
                             print "    Ignore variable:" + key
         trainable_var_for_chk=tf.trainable_variables()#tf.get_collection(ops.GraphKeys.TRAINABLE_VARIABLES)
-        print 'Variables to train: ',trainable_var_for_chk
+        print 'Variables to training: ',trainable_var_for_chk
 
         timer = Timer()
         rpn_rois = self.net.get_output('rpn_rois')
@@ -203,15 +153,9 @@ class CubicNet_Train(object):
             for data_idx in training_series:  # DO NOT EDIT the "training_series",for the latter shuffle
                 iter = global_step.eval()  # function "minimize()"will increase global_step
                 blobs = self.dataset.get_minibatch(data_idx, 'train')  # get one batch
-                feed_dict = {
-                    self.net.lidar3d_data: blobs['lidar3d_data'],
-                    self.net.lidar_bv_data: blobs['lidar_bv_data'],
-                    self.net.im_info: blobs['im_info'],
-                    self.net.keep_prob: 0.5,
-                    self.net.gt_boxes_bv: blobs['gt_boxes_bv'],
-                    self.net.gt_boxes_3d: blobs['gt_boxes_3d'],
-                    self.net.gt_boxes_corners: blobs['gt_boxes_corners'],
-                    self.net.calib: blobs['calib']}
+                feed_dict = {self.net.lidar3d_data: blobs['lidar3d_data'],
+                             self.net.gt_boxes_3d: blobs['gt_boxes_3d']
+                             }
                 run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 run_metadata = tf.RunMetadata()
 
@@ -221,27 +165,24 @@ class CubicNet_Train(object):
                     feed_dict=feed_dict,options=run_options, run_metadata=run_metadata)
                 timer.toc()
 
-                recall_RPN = recall_RPN + rpn_rois_[2][0]
                 cubic_result = cubic_cls_score_.argmax(axis=1)
                 one_hist = fast_hist(cubic_cls_labels_, cubic_result)
                 cubic_car_cls_prec = one_hist[1, 1] / (one_hist[1, 1] + one_hist[0, 1]+1e-5)
                 cubic_car_cls_recall = one_hist[1, 1] / (one_hist[1, 1] + one_hist[1, 0]+1e-5)
 
-                if (iter % 4000==0 and cfg.TRAIN.DEBUG_TIMELINE) or (iter == 100):
+                if iter % 1000==0 and cfg.TRAIN.DEBUG_TIMELINE:
                     #chrome://tracing
                     trace = timeline.Timeline(step_stats=run_metadata.step_stats)
-                    trace_file = open(cfg.LOG_DIR+'/' +'training-step-'+ str(iter).zfill(7) + '.ctf.json', 'w')
+                    trace_file = open(cfg.LOG_DIR+'/' +'training-StiData-step-'+ str(iter).zfill(7) + '.ctf.json', 'w')
                     trace_file.write(trace.generate_chrome_trace_format(show_memory=False))
                     trace_file.close()
                 if iter % cfg.TRAIN.ITER_DISPLAY == 0:
-                    print 'Iter: %d / %d, loss: %.3f, rpn_recall: %.3f,' % \
-                          (iter, self.args.epoch_iters * self.epoch,loss_,recall_RPN / cfg.TRAIN.ITER_DISPLAY)
-                    recall_RPN = 0.
+                    print 'Iter: %d / %d, loss: %.3f' % (iter, self.args.epoch_iters * self.epoch,loss_,)
                     print 'Cubic classify precise: {:.3f}  recall: {:.3f}'.format(cubic_car_cls_prec, cubic_car_cls_recall)
                     print 'Speed: {:.3f}s / iter'.format(timer.average_time)
                     print 'divine: ', cubic_result
                     print 'labels: ', cubic_cls_labels_
-                if iter % 20 == 0 and cfg.TRAIN.TENSORBOARD:
+                if iter % 10 == 0 and cfg.TRAIN.TENSORBOARD:
                     train_writer.add_summary(merged_, iter)
                     pass
                 if iter % cfg.TRAIN.SNAPSHOT_ITERS == 0:
@@ -251,7 +192,7 @@ class CubicNet_Train(object):
                     scan = blobs['lidar3d_data']
                     gt_box3d = blobs['gt_boxes_3d'][:, (0, 1, 2, 3, 4, 5, 6)]
                     gt_box3d = np.hstack((gt_box3d,np.ones([gt_box3d.shape[0],2])*4))
-                    pred_boxes = np.hstack((rpn_rois_[1],cubic_result.reshape(-1,1)*2))
+                    pred_boxes = np.hstack((rpn_rois_,cubic_result.reshape(-1,1)*2))
                     bbox = np.vstack((pred_boxes, gt_box3d))
                     # msg = msg_qt(scans=scan, boxes=bbox,name='CubicNet training')
                     # MSG_QUEUE.put(msg)
@@ -315,8 +256,8 @@ class CubicNet_Train(object):
         self.snapshot(sess, iter, final=True)
         print 'Training process has done, enjoy every day !'
 
-def network_training(network, data_set, args):
-    net = CubicNet_Train(network, data_set, args)
+def network_training_sti(network, data_set, args):
+    net = CubicNet_Train_sti(network, data_set, args)
 
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True

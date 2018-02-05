@@ -10,6 +10,7 @@
 import cv2
 import re
 import os
+import time
 import random
 import socket
 import cPickle
@@ -141,12 +142,13 @@ class dataset_KITTI_train(object):  # read txt files one by one
             cache_file = os.path.join(self._data_path, 'train_gt_roidb_sti.pkl')
             val_cache_file = os.path.join(self._data_path, 'valid_gt_roidb_sti.pkl')
         if os.path.exists(cache_file) & os.path.exists(val_cache_file):
+            print 'Dataset will be loaded from existing cache file'
             with open(cache_file, 'rb') as fid:
                 train_roidb = cPickle.load(fid)
-            print 'Train gt roidb loaded from {}'.format(cache_file)
+            print '  Train gt roidb loaded from {}'.format(cache_file)
             with open(val_cache_file, 'rb') as fid:
                 valid_roidb = cPickle.load(fid)
-            print 'valid gt roidb loaded from {}'.format(val_cache_file)
+            print '  valid gt roidb loaded from {}'.format(val_cache_file)
 
             return train_roidb, valid_roidb
 
@@ -597,14 +599,19 @@ class dataset_STI_train(object):  # read txt files one by one
         self.percent_train = 0.66
         self.percent_valid = 0.26
         self.train_set, self.valid_set, self.test_set = self.load_dataset()
-        print 'Done!'
+        self.validing_rois_length=len(self.valid_set)
+        self.training_rois_length=len(self.train_set)
+        print 'Dataset initialization has been done successfully.'
+        time.sleep(3)
 
     def load_dataset(self):
+        Instruction_cache_file = path_add(self.data_path, 'Instruction_cache_data.pkl')
         train_cache_file = path_add(self.data_path, 'train_cache_data.pkl')
         valid_cache_file = path_add(self.data_path, 'valid_cache_data.pkl')
         test_cache_file = path_add(self.data_path, 'test_cache_data.pkl')
-        if os.path.exists(train_cache_file) & os.path.exists(valid_cache_file) & os.path.exists(test_cache_file):
+        if os.path.exists(train_cache_file) & os.path.exists(valid_cache_file) & os.path.exists(test_cache_file)& os.path.exists(Instruction_cache_file):
             print 'Loaded the STi dataset from pkl cache files ...'
+
             with open(train_cache_file, 'rb') as fid:
                 train_set = cPickle.load(fid)
                 print '  train gt set(cnt:{}) loaded from {}'.format(len(train_set),train_cache_file)
@@ -616,6 +623,10 @@ class dataset_STI_train(object):  # read txt files one by one
             with open(test_cache_file, 'rb') as fid:
                 test_set = cPickle.load(fid)
                 print '  test gt set(cnt:{}) loaded from {}'.format(len(test_set),test_cache_file)
+            with open(Instruction_cache_file, 'rb') as fid:
+                key_points = cPickle.load(fid)
+                print 'Notice: the groundtruth range is [{}] meters, the label to keep is {} ,please verify that meets requirement !'\
+                      .format(key_points[0],key_points[1],)
 
             return train_set, valid_set, test_set
 
@@ -623,7 +634,8 @@ class dataset_STI_train(object):  # read txt files one by one
         self.total_roidb = self.load_sti_annotation()
         self.filter_roidb = self.filter(self.total_roidb, self.type_to_keep)
         train_set, valid_set, test_set = self.assign_dataset(self.filter_roidb)  # train,valid percent
-
+        with open(Instruction_cache_file, 'wb') as fid:
+            cPickle.dump([cfg.DETECTION_RANGE,self.type_to_keep], fid, cPickle.HIGHEST_PROTOCOL)
         with open(train_cache_file, 'wb') as fid:
             cPickle.dump(train_set, fid, cPickle.HIGHEST_PROTOCOL)
             print '  Wrote and loaded train gt roidb(cnt:{}) to {}'.format(len(train_set),train_cache_file)
@@ -775,6 +787,7 @@ class dataset_STI_test(object):  # read txt files one by one
         self.percent_train = 0.66
         self.percent_valid = 0.26
         self.test_set = self.load_dataset()
+        self.testing_rois_length=len(self.test_set)
         print 'Done!'
 
     def load_dataset(self):
@@ -910,7 +923,7 @@ class dataset_STI_test(object):  # read txt files one by one
         # Rotation of the image or change the scale
         pass
 
-    def get_minibatch(self, idx=0,name='test'):
+    def get_minibatch(self,idx=0,name='test'):
         """Given a roidb, construct a minibatch sampled from it."""
         dataset = self.test_set
         fname = dataset[idx]['files_list']

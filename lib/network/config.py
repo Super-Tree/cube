@@ -11,9 +11,7 @@ __C = edict()
 cfg = __C
 
 __C.GPU_AVAILABLE = '3,1,2,0'
-__C.GPU_USE_COUNT = len(__C.GPU_AVAILABLE.split(','))
-__C.GPU_MEMORY_FRACTION = 1
-__C.VOXEL_POINT_COUNT = 35
+
 __C.NUM_CLASS = 2
 __C.DEFAULT_PADDING = 'SAME'
 __C.ROOT_DIR = osp.abspath(osp.join(osp.dirname(__file__), '..', '..'))
@@ -24,10 +22,13 @@ __C.LOCAL_LOG_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'local_log'))
 __C.TEST_RESULT = osp.abspath(osp.join(__C.ROOT_DIR, 'test_result'))
 __C.EPS = 1e-15
 __C.ANCHOR = [4.000,4.000,2.000]  # car size # todo: car height should be carefully decided!
-__C.CUBIC_RES = [0.286,0.286,0.143]  # car size
+__C.CUBIC_RES = [0.136,0.136,0.14] # 30x30x15  # car size [0.2858,0.2858,0.1429]:14x14x14
 __C.ANCHOR_CNT=1
 __C.RPN_POINTS_REMAIN = 600
-__C.DETECTION_RANGE = 45.0 # effect on GroundTruth range filter(dataset_STI_train.filter) and  pseudo-rpn generate in function 'proposal_layer_3d_STI'
+# TODO:DETECTION_RANGE should be careful !
+# effect on GroundTruth range filter(dataset_STI_train.filter) and  pseudo-rpn generate in function 'proposal_layer_3d_STI'
+# when change the detection range ,must delete the cache file in dataset
+__C.DETECTION_RANGE = 20.0
 __C.RANDOM_STR =''.join(random.sample(string.ascii_letters, 4))
 if spawn.find_executable("nvcc",path="/usr/local/cuda-8.0/bin/"):
     # Use GPU implementation of non-maximum suppression
@@ -44,18 +45,18 @@ else:
 # Training options
 __C.TRAIN = edict()
 
-__C.TRAIN.SNAPSHOT_ITERS = 5000
+__C.TRAIN.SNAPSHOT_ITERS = 8000
 __C.TRAIN.LEARNING_RATE = 1e-5
 __C.TRAIN.BATCH_SIZE = 1  # only one image
-__C.TRAIN.FOCAL_LOSS = True
-__C.TRAIN.WEIGHT_DECAY = 0.0005
+__C.TRAIN.WEIGHT_DECAY = 0.0005 # for l2 regularizer in network.py btw,useless
 __C.TRAIN.MOVING_AVERAGE_DECAY = 0.9999
 __C.TRAIN.ITER_DISPLAY = 10
+__C.TRAIN.FOCAL_LOSS = True
 __C.TRAIN.TENSORBOARD = True
 __C.TRAIN.DEBUG_TIMELINE = True  # Enable timeline generation
 __C.TRAIN.USE_VALID = True
 __C.TRAIN.VISUAL_VALID = True
-
+__C.TRAIN.USE_AUGMENT_IN_CUBIC_GEN = True
 # Total number of examples
 __C.TRAIN.RPN_BATCHSIZE = 128
 # Max number of foreground examples ,only keep 1/4 positive anchors

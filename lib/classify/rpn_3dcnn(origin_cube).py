@@ -5,52 +5,43 @@ import tensorflow as tf
 from tools.data_visualize import pcd_vispy,pcd_show_now
 from network.config import cfg
 from easydict import EasyDict as edict
-from dataset.dataset import dataset_STI_train,dataset_KITTI_train
+from dataset.dataset import dataset_STI_train
 
 DEBUG = False
 
 shape = lambda i: int(np.ceil(np.round(cfg.ANCHOR[i] / cfg.CUBIC_RES[i], 3)))  # Be careful about python number  decimal
 #TODO: cubic feature define 2,4,or else?
-cubic_size = [shape(0), shape(1), shape(2), 2]
+cubic_size = [shape(0), shape(1), shape(2),2]
+
 
 def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes,method):
     res = []
     display_stack=[]
     if DEBUG:
-        pass
+        print 'Start vispy ...'
         display_stack.append(pcd_vispy(lidarPoints, boxes=rpnBoxes,visible=False,multi_vis=True))
 
-    for iidx,box in enumerate(rpnBoxes):
+    for box in rpnBoxes:
         rpn_points,min_vertex,ctr_vertex = bounding_filter(lidarPoints,box)
         points_mv_min = np.subtract(rpn_points,min_vertex)  # using fot coordinate
         points_mv_ctr = np.subtract(rpn_points,ctr_vertex)  # using as feature
-        if method =='train' and cfg.TRAIN.USE_AUGMENT_IN_CUBIC_GEN:
-            angel = random.rand()*np.pi*2 #[ 0~360]
-            scalar = 1.2 - random.rand()*0.4
-            translation = np.random.rand(3, 1) * 0.3
-            points_mv_ctr_rot_nobound = rot_sca_pc(points_mv_ctr,angel,scalar,translation)
-            points_mv_ctr_rot,min_p,ctr_p = bounding_filter(points_mv_ctr_rot_nobound, [0,0,0])
 
-            x_cub = np.divide(points_mv_ctr_rot[:,0] - min_p[0], cfg.CUBIC_RES[0]).astype(np.int32)
-            y_cub= np.divide(points_mv_ctr_rot[:,1] - min_p[1], cfg.CUBIC_RES[1]).astype(np.int32)
-            z_cub = np.divide(points_mv_ctr_rot[:,2] - min_p[2], cfg.CUBIC_RES[2]).astype(np.int32)
-            # feature = np.hstack((x_cub.reshape(-1,1)-(shape(0)/2),y_cub.reshape(-1,1)-(shape(1)/2),z_cub.reshape(-1,1)-(shape(2)/2),points_mv_ctr_rot[:,3].reshape(-1,1))) #points_mv_ctr_rot
-            feature = np.hstack((np.ones([len(points_mv_ctr_rot[:,3]),1]),points_mv_ctr_rot[:,3].reshape(-1,1))) #points_mv_ctr_rot
-        else: # method: test
-            x_cub = np.divide(points_mv_min[:, 0], cfg.CUBIC_RES[0]).astype(np.int32)
-            y_cub = np.divide(points_mv_min[:, 1], cfg.CUBIC_RES[1]).astype(np.int32)
-            z_cub = np.divide(points_mv_min[:, 2], cfg.CUBIC_RES[2]).astype(np.int32)
-            feature = np.hstack((np.ones([len(points_mv_ctr[:,3]),1]),points_mv_ctr[:,3:]))
+        x_cub = np.divide(points_mv_min[:, 0], cfg.CUBIC_RES[0]).astype(np.int32)
+        y_cub = np.divide(points_mv_min[:, 1], cfg.CUBIC_RES[1]).astype(np.int32)
+        z_cub = np.divide(points_mv_min[:, 2], cfg.CUBIC_RES[2]).astype(np.int32)
+        feature = np.hstack((np.ones([len(points_mv_ctr[:,3]),1]),points_mv_ctr[:,3:]))
 
         cubic_feature = np.zeros(shape=cubic_size, dtype=np.float32)
         cubic_feature[x_cub, y_cub, z_cub] =feature# TODO:select&add feature # points_mv_ctr  # using center coordinate system
         res.append(cubic_feature)
 
         if DEBUG:
-            box_mv = [box[0] - box[0], box[1] - box[1], box[2] - box[2],shape(0), shape(1),shape(2),1,1,1]
-            display_stack.append(pcd_vispy(cubic_feature.reshape(-1, 4),name='grid_'+str(iidx), boxes=np.array(box_mv),visible=False,multi_vis=True))
-            display_stack.append(pcd_vispy(points_mv_ctr.reshape(-1, 4),name='origin_'+str(iidx), boxes=np.array(box_mv),visible=False,multi_vis=True))
-        # break
+            box_mv = [box[0] - box[0], box[1] - box[1], box[2] - box[2],shape(0), shape(1),shape(2),box[6],box[7],0]
+            # box_mv = [box[0] - box[0], box[1] - box[1], box[2] - box[2],cfg.ANCHOR[0], cfg.ANCHOR[1],
+            #           cfg.ANCHOR[2], box[6],box[7],0]
+            display_stack.append(pcd_vispy(cubic_feature.reshape(-1, 4), boxes=np.array(box_mv),visible=False,multi_vis=True))
+            display_stack.append(pcd_vispy(points_mv_ctr.reshape(-1, 4), boxes=np.array(box_mv),visible=False,multi_vis=True))
+        break
     if DEBUG:
         pcd_show_now()
     stack_size = np.concatenate((np.array([-1]), cubic_size))
@@ -150,9 +141,8 @@ if __name__ == '__main__':
     arg = edict()
     arg.imdb_type = 'sti'
 
-    dataset = dataset_KITTI_train(arg)
+    dataset = dataset_STI_train(arg)
     DEBUG=True
-
     while True:
 
         idx = input('Type a new index: ')

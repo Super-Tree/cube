@@ -3,7 +3,7 @@ from network import Network
 from config import cfg
 
 _feat_stride = [8, 8]
-class test_net(Network):
+class test_net_sti(Network):
     def __init__(self,args,trainable=False):
         self.inputs = []
         self.lidar3d_data = tf.placeholder(tf.float32, shape=[None, 4])
@@ -56,6 +56,6 @@ class test_net(Network):
          .generate_rpn(_feat_stride, 'TEST', name='rpn_rois'))
 
         (self.feed('lidar3d_data','rpn_rois')
-         .cubic_grid(method=args.method,name='cubic_grid')
+         .cubic_grid(name='cubic_grid')
          .cubic_cnn(name='cubic_cnn')
          )

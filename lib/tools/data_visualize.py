@@ -27,7 +27,7 @@ def box3d_2conner(box):
 
     return p0,p1,p2,p3,p4,p5,p6,p7
 #  using vispy ============================
-class pcd_vispy_client(object):# TODO: TO BE RE-WRITE
+class pcd_vispy_client(object):# TODO: qt-client TO BE RE-WRITE
     def __init__(self,QUEUE,title=None, keys='interactive', size=(800,600)):
         self.queue=QUEUE
         self.canvas = vispy.scene.SceneCanvas(title=title, keys=keys, size=size, show=True)
@@ -133,7 +133,7 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
     pos = scans[:, :3]
     scatter = visuals.Markers()
     scatter.set_gl_state('translucent', depth_test=False)
-    scatter.set_data(pos, edge_width=0, face_color=(1, 1, 1, 1), size=0.01, scaling=True)
+    scatter.set_data(pos, edge_width=0, face_color=(1, 1, 1, 1), size=0.02, scaling=True)
 
     vb.camera = 'turntable'
     vb.camera.elevation = 21.0
@@ -164,7 +164,7 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
 
             if box[-1] == 4:  #  gt boxes
                 i = i + 1
-                vsp_box = visuals.Box(width=box[3],  depth=box[4],height=box[5], color=(0.6, 0.8, 0.0, 0.1),edge_color='pink')
+                vsp_box = visuals.Box(width=box[3],  depth=box[4],height=box[5], color=(0.3, 0.4, 0.0, 0.06),edge_color='pink')
                 mesh_box = vsp_box.mesh.mesh_data
                 mesh_border_box = vsp_box.border.mesh_data
                 vertices = mesh_box.get_vertices()
@@ -178,7 +178,10 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
                                         pos=[box[0], box[1], box[2]],anchor_x='left', anchor_y='top', font_manager=None)
                     vb.add(text)
             elif len(box)!=9:
-                vb.add(line_box(box, color='pink'))
+                if box[-1] == 1:
+                    vb.add(line_box(box, color='yellow'))
+                else:
+                    vb.add(line_box(box, color='pink'))
             elif (box[-1]+box[-2]) == 0: # True negative cls rpn divided by cube
                 vb.add(line_box(box,color=color))
             elif (box[-1]+box[-2]) == 1: # False negative cls rpn divided by cube
@@ -192,6 +195,9 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
                     vb.add(line_box(box, color='blue'))
             elif (box[-1]+box[-2]) == 3: # True positive cls rpn divided by cube
                 vb.add(line_box(box,color='yellow'))
+            text = visuals.Text(text='vertex:0', color='white', face='OpenSans', font_size=12,
+                                pos=[box[0]-box[3]/2, box[1]-box[4]/2, box[2]-box[5]/2], anchor_x='left', anchor_y='top', font_manager=None)
+            vb.add(text)
 
     if save_img:
         fileName = path_add(folder,str(index).zfill(6)+'.png')
@@ -435,7 +441,7 @@ def draw_3dPoints_box(lidar=None, Boxes3D=None, is_grid=True, fig=None, draw_axi
             [0., 2., 0., 0.],
             [0., 0., 2., 0.],
         ], dtype=np.float64)
-        fov = np.array([  ##<todo> : now is 45 deg. use actual setting later ...
+        fov = np.array([
             [40., 40., 0., 0.],
             [40., -40., 0., 0.],
         ], dtype=np.float64)

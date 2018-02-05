@@ -18,34 +18,36 @@ DEBUG = False
 
 def proposal_layer_3d_STI(gt_3d, bounding,num):
 
-    boxes_cnt = num*1
-    boxes_remain = num*1
+    boxes_cnt = num*3
+    boxes_remain = num*2
 
     xy_pos = 14.0 * random.randn(boxes_cnt,2)
     z_pos = random.rand(boxes_cnt,1)*0.2-0.2
     centers = np.hstack((xy_pos,z_pos))
-    score = np.array([0.8])
+    score_rpn = np.array([0.8])
+    score_gt = np.array([0.9])
     size = np.array(cfg.ANCHOR)
-    category=np.array([0.,0.])
-    gt_boxes=np.array([np.hstack((gt_3d[i][0:3],size,score,np.array([4,4]))) for i in range(gt_3d.shape[0])])
+    # the category [1.,4.] is used for rpn label and vispy label,so don't change it rashly
+    gt_boxes=np.array([np.hstack((gt_3d[i][0:3],size,score_gt,np.array([1.]))) for i in range(gt_3d.shape[0])],dtype=np.float32)
     gt_cnt = gt_boxes.shape[0]
-
-    rpn_boxes = np.array([np.hstack((centers[i],size,score,category)) for i in range(boxes_cnt)],dtype=np.float32)
+    rpn_boxes = np.array([np.hstack((centers[i],size,score_rpn,np.array([0.]))) for i in range(boxes_cnt)],dtype=np.float32)
     indice_inside = np.where((rpn_boxes[:, 0] >= -bounding) & (rpn_boxes[:, 0] <= bounding)
                              & (rpn_boxes[:, 1] >= -bounding) & (rpn_boxes[:, 1] <= bounding)
                              )[0]
-
     rpn_filter_boxes = rpn_boxes[indice_inside]
-    rpn_filter_boxes_bv=lidar_3d_to_bv(rpn_filter_boxes[:,0:6])
-    scores = rpn_filter_boxes[:,6:7]
+    all_boxes = np.vstack((gt_boxes, rpn_filter_boxes))
+
+    all_boxes_bv=lidar_3d_to_bv(all_boxes[:,0:6])
+    scores = all_boxes[:,6:7]
     beg = datetime.datetime.now()
-    keep = nms(np.hstack((rpn_filter_boxes_bv, scores)), 0.6,force_cpu=False)
+    keep = nms(np.hstack((all_boxes_bv, scores)), 0.6,force_cpu=False)
     end2 = datetime.datetime.now()
-    keep = keep[:(boxes_remain-gt_cnt)]
-    rpn_filter_boxes=rpn_filter_boxes[keep]
-
-    blob_3d = np.vstack((gt_boxes,rpn_filter_boxes))
-
+    keep = keep[:boxes_remain]
+    filter_all_boxes=all_boxes[keep]
+    gt_cnt_filter = len(np.where(filter_all_boxes[:,-1] == 4)[0])
+    if gt_cnt>gt_cnt_filter:
+        print 'Warning ! in Func:proposal_layer_3d_STI,one than one groundtruth has been filtered by nms  '
+    blob_3d = filter_all_boxes
     if DEBUG:
         print 'boxes number:{}'.format(blob_3d.shape[0])
         print 'NMS use time:', end2 - beg
@@ -184,7 +186,7 @@ def proposal_layer_3d(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, gt_bv, cfg_k
         print "proposals_bv shape: ", proposals_bv.shape
         print "proposals_3d shape: ", proposals_3d.shape
 
-    keep = nms(np.hstack((proposals_bv, scores)), nms_thresh,force_cpu=False)#TODO:cpu instead and re-edit later !!!
+    keep = nms(np.hstack((proposals_bv, scores)), nms_thresh,force_cpu=False)
     if DEBUG:
         print keep
         print 'keep.shape',len(keep)
@@ -299,7 +301,7 @@ def generate_rpn(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, cfg_key, _feat_st
         print "proposals_bv shape: ", proposals_bv.shape
         print "proposals_3d shape: ", proposals_3d.shape
 
-    keep = nms(np.hstack((proposals_bv, scores)), nms_thresh,force_cpu=False)#TODO:cpu instead and re-edit later !!!
+    keep = nms(np.hstack((proposals_bv, scores)), nms_thresh,force_cpu=False)
     if test_debug:
         print keep
         print 'keep.shape',len(keep)
@@ -406,5 +408,5 @@ if __name__ =='__main__':
         blob = dataset.get_minibatch(idx,name='train')
         watch = blob['gt_boxes_3d']
         boxes3d = proposal_layer_3d_STI(gt_3d=blob['gt_boxes_3d'], bounding=45., num=50)
-        pcd_vispy(scans=blob['lidar3d_data'], boxes=boxes3d, vis_size=(800, 600),visible = True)
+        pcd_vispy(scans=blob['lidar3d_data'], boxes=boxes3d, vis_size=(800, 600),visible=True)
         idx += 1
