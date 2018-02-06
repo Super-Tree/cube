@@ -11,7 +11,7 @@ from os.path import join as path_add
 
 vispy.set_log_level('CRITICAL', match='-.-')
 folder = path_add(cfg.TEST_RESULT, cfg.RANDOM_STR)
-os.makedirs(folder)
+# os.makedirs(folder)
 #  common functions  ===========================
 def box3d_2conner(box):
     #box : score,x,y,z,l,w,h,type1,type2
@@ -28,12 +28,40 @@ def box3d_2conner(box):
     return p0,p1,p2,p3,p4,p5,p6,p7
 #  using vispy ============================
 class pcd_vispy_client(object):# TODO: qt-client TO BE RE-WRITE
-    def __init__(self,QUEUE,title=None, keys='interactive', size=(800,600)):
+    def __init__(self,QUEUE,scans=None,title=None, keys='interactive', size=(800,600)):
         self.queue=QUEUE
-        self.canvas = vispy.scene.SceneCanvas(title=title, keys=keys, size=size, show=True)
-        grid = self.canvas.central_widget.add_grid()
-        self.vb = grid.add_view(row=0, col=0, row_span=2)
-        self.vb_img = grid.add_view(row=1, col=0)
+        # self.canvas = vispy.scene.SceneCanvas(title=title, keys=keys, size=size, show=True)
+        # self.grid = self.canvas.central_widget.add_grid()
+        # self.vb = self.grid.add_view(row=0, col=0, row_span=2)
+        # self.vb_img = self.grid.add_view(row=1, col=0)
+        #
+        # self.vb.camera = 'turntable'
+        # self.vb.camera.elevation = 21.0
+        # self.vb.camera.center = (6.5, -0.5, 9.0)
+        # self.vb.camera.azimuth = -75.5
+        # self.vb.camera.scale_factor = 32.7
+        #
+        # self.vb_img.camera = 'turntable'
+        # self.vb_img.camera.elevation = -90.0
+        # self.vb_img.camera.center = (2100, -380, -500)
+        # self.vb_img.camera.azimuth = 0.0
+        # self.vb_img.camera.scale_factor = 1500
+
+        # @self.canvas.connect
+        # def on_key_press(ev):
+        #     if ev.key.name in '+=':
+        #         a = self.vb.camera.get_state()
+        #     print(a)
+
+        # self.input_data(scans)
+        #
+        # vispy.app.run()
+
+    def input_data(self,scans=None,img=None,boxes=None,index=0,save_img=False,no_gt=False):
+        self.canvas = vispy.scene.SceneCanvas(show=True)
+        self.grid = self.canvas.central_widget.add_grid()
+        self.vb = self.grid.add_view(row=0, col=0, row_span=2)
+        self.vb_img = self.grid.add_view(row=1, col=0)
 
         self.vb.camera = 'turntable'
         self.vb.camera.elevation = 21.0
@@ -47,18 +75,7 @@ class pcd_vispy_client(object):# TODO: qt-client TO BE RE-WRITE
         self.vb_img.camera.azimuth = 0.0
         self.vb_img.camera.scale_factor = 1500
 
-        @self.canvas.connect
-        def on_key_press(ev):
-            if ev.key.name in '+=':
-                a = self.vb.camera.get_state()
-            print(a)
-
-        self.input_data()
-
-        vispy.app.run()
-
-    def input_data(self,scans,img,boxes,index,save_img,no_gt):
-        pos = scans[:, :3]
+        pos = scans[:, 0:3]
         scatter = visuals.Markers()
         scatter.set_gl_state('translucent', depth_test=False)
         scatter.set_data(pos, edge_width=0, face_color=(1, 1, 1, 1), size=0.01, scaling=True)
@@ -70,7 +87,8 @@ class pcd_vispy_client(object):# TODO: qt-client TO BE RE-WRITE
         self.vb_img.add(image)
 
         if boxes is not None:
-            boxes = boxes.reshape(-1, 9)
+            if len(boxes.shape)==1:
+                boxes = boxes.reshape(1, -1)
             gt_indice = np.where(boxes[:, -1] == 2)[0]
             gt_cnt = len(gt_indice)
             i = 0
@@ -111,15 +129,29 @@ class pcd_vispy_client(object):# TODO: qt-client TO BE RE-WRITE
             res = self.canvas.render(bgcolor='black')[:,:,0:3]
             vispy_file.write_png(fileName, res)
 
+        @self.canvas.connect
+        def on_key_press(ev):
+            if ev.key.name in '+=':
+                a = self.vb.camera.get_state()
+            print(a)
+        # vispy.app.run()
+
     def get_thread_data(self,QUEUE):
-        if not QUEUE.empty():
-            msg = QUEUE.get() # from class msg_qt(object) in file: cubic_train
-            scans =msg.scans
-            img=msg.img
-            boxes=msg.boxes
-            index=msg.index
-            save_img=msg.save_img
-            no_gt=msg.no_gt
+        while True:
+            if not QUEUE.empty():
+                msg = QUEUE.get() # from class msg_qt(object) in file: cubic_train
+                scans =msg.scans[0]
+                img=msg.img[0]
+                boxes_=msg.boxes[0]
+                index=msg.index[0]
+                save_img=msg.save_img[0]
+                no_gt=msg.no_gt[0]
+                # win32api.keybd_event(17,0,0,0)
+                # pcd_vispy(scans=scans, img=img, boxes=boxes_,index=index,save_img=save_img,
+                #           visible=False, no_gt=no_gt, multi_vis=True)
+                self.input_data(scans,img,boxes_,index,save_img,no_gt)
+                vispy.app.run()
+                a =[]
 
 def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800, 600),save_img=False,visible=True,no_gt=False,multi_vis=False):
     if multi_vis:
@@ -195,9 +227,9 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
                     vb.add(line_box(box, color='blue'))
             elif (box[-1]+box[-2]) == 3: # True positive cls rpn divided by cube
                 vb.add(line_box(box,color='yellow'))
-            text = visuals.Text(text='vertex:0', color='white', face='OpenSans', font_size=12,
-                                pos=[box[0]-box[3]/2, box[1]-box[4]/2, box[2]-box[5]/2], anchor_x='left', anchor_y='top', font_manager=None)
-            vb.add(text)
+            # text = visuals.Text(text='vertex:0', color='white', face='OpenSans', font_size=12,
+            #                     pos=[box[0]-box[3]/2, box[1]-box[4]/2, box[2]-box[5]/2], anchor_x='left', anchor_y='top', font_manager=None)
+            # vb.add(text)
 
     if save_img:
         fileName = path_add(folder,str(index).zfill(6)+'.png')
@@ -249,7 +281,7 @@ def Boxes_labels_Gen(box_es,ns,frame_id='rslidar'):
         marker.action = marker.ADD
         # marker.frame_locked=False
         # marker scale
-        marker.scale = Vector3(0.04, 0.04, 0.04)  # x,yz
+        marker.scale = Vector3(0.07, 0.07, 0.07)  # x,yz
         # marker color
         marker.color = ColorRGBA(color[0], color[1], color[2], color[3])  # r,g,b,a
         # marker orientaiton
@@ -293,10 +325,12 @@ def Boxes_labels_Gen(box_es,ns,frame_id='rslidar'):
     label_boxes = MarkerArray()
     label_boxes.markers=[]
     for idx,_box in enumerate(box_es):
-        if _box[-1]==4:
+        radio = max(_box[6] - 0.5, 0.005) * 2.0
+        color = (0, radio, 0, 1)  # Green
+        if _box[-1]==1:
             color_ = (1., 1., 0., 1)  # yellow
         else:
-            color_ = (0., 1., 0., 1)  # green
+            color_ = color  # green
         if idx == 0:
             label_boxes.markers.append(delete_all_markers(_box, color_, idx))
         label_boxes.markers.append(one_box(_box,color_,idx))
@@ -345,6 +379,18 @@ def PointCloud_Gen(points,frameID='rslidar'):
             #     seg_point.points.append(geo_point)
 
     return seg_point
+
+def Image_Gen(iamge,frameID='rslidar'):
+    from sensor_msgs.msg import Image
+    from cv_bridge import CvBridge
+    cv_ros = CvBridge()
+    image_ros = cv_ros.cv2_to_imgmsg(iamge,'bgr8')
+    # res = Image()
+    # image_ros.data = iamge
+    # image_ros.height = 375
+    # image_ros.width = 1242
+    image_ros.header.frame_id = frameID
+    return image_ros
 
 #  using mayavi ===========================
 
@@ -495,13 +541,39 @@ def test_show_bbox(bv_image, bv_box):
 
 
 if __name__ == '__main__':
-    import rospy
-    from visualization_msgs.msg import Marker, MarkerArray
+    # import rospy
+    # from visualization_msgs.msg import Marker, MarkerArray
+    #
+    # boxes =np.array([[1,1,1,1,1,1,1,1,1],[1,3,3,1,1,1,1,1,1]])
+    # rospy.init_node('node_labels')
+    # label_pub = rospy.Publisher('labels', MarkerArray, queue_size=100)
+    # rospy.loginfo('Ros begin ...')
+    # label_box = Boxes_labels_Gen(boxes,ns='test_box')
+    # while True:
+    #     label_pub.publish(label_box)
+    ##====================================================================
+    from multiprocessing import Process, Queue
+    from dataset.dataset import dataset_KITTI_train
+    from easydict import EasyDict as edict
+    from cubicnet.cubic_train import msg_qt
+    import time
+    import virtkey
 
-    boxes =np.array([[1,1,1,1,1,1,1,1,1],[1,3,3,1,1,1,1,1,1]])
-    rospy.init_node('node_labels')
-    label_pub = rospy.Publisher('labels', MarkerArray, queue_size=100)
-    rospy.loginfo('Ros begin ...')
-    label_box = Boxes_labels_Gen(boxes,ns='test_box')
+    v = virtkey.virtkey()
+    v.press_unicode(ord("f1"))
+    v.release_unicode(ord("f1"))
+    arg = edict()
+    arg.imdb_type = 'kitti'
+    arg.method = 'train'
+
+    dataset = dataset_KITTI_train(arg)
+    blobs = dataset.get_minibatch(169)
+    MSG_QUEUE = Queue(200)
+    station = pcd_vispy_client(MSG_QUEUE,blobs['lidar3d_data'],title='Vision')
+
+    vision_qt = Process(target=station.get_thread_data, args=(MSG_QUEUE,))
+    vision_qt.start()
     while True:
-        label_pub.publish(label_box)
+        msg = msg_qt(scans=blobs['lidar3d_data'], boxes= blobs['gt_boxes_3d'], name='CubicNet training')
+        MSG_QUEUE.put(msg)
+        time.sleep(4)

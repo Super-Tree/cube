@@ -17,6 +17,19 @@ class CubicNet_Test(object):
         self.epoch = self.dataset.input_num
 
     def testing(self, sess, test_writer):
+        ##=======================================
+        if VISION_DEBUG:
+            import rospy
+            from sensor_msgs.msg import PointCloud,Image
+            from visualization_msgs.msg import MarkerArray, Marker
+            from tools.data_visualize import Boxes_labels_Gen, Image_Gen,PointCloud_Gen
+
+            rospy.init_node('rostensorflow')
+            pub = rospy.Publisher('prediction', PointCloud, queue_size=1000)
+            img_pub = rospy.Publisher('images_rgb', Image, queue_size=1000)
+            box_pub = rospy.Publisher('label_boxes', MarkerArray, queue_size=1000)
+            rospy.loginfo("ROS begins ...")
+        ##=======================================
         with tf.name_scope('view_cubic_rpn'):
             roi_bv = self.net.get_output('rpn_rois')[0]
             data_bv = self.net.lidar_bv_data
@@ -66,11 +79,18 @@ class CubicNet_Test(object):
             if VISION_DEBUG:
                 scan = blobs['lidar3d_data']
                 img = blobs['image_data']
-                pred_boxes = np.hstack((rpn_3d_, cubic_result.reshape(-1, 1)*2))
-                pcd_vispy(scan,img, pred_boxes,no_gt=True,index=idx,
-                          save_img=cfg.TEST.SAVE_IMAGE,
-                          visible=True,
-                          name='CubicNet testing')
+                pred_boxes = np.hstack((rpn_3d_, cubic_result.reshape(-1, 1)*1))
+                # pcd_vispy(scan,img, pred_boxes,no_gt=True,index=idx,
+                #           save_img=cfg.TEST.SAVE_IMAGE,
+                #           visible=True,
+                #           name='CubicNet testing')
+
+                pointcloud = PointCloud_Gen(scan)
+                label_boxes = Boxes_labels_Gen(pred_boxes, ns='Predict')
+                img_ros = Image_Gen(img)
+                pub.publish(pointcloud)
+                img_pub.publish(img_ros)
+                box_pub.publish(label_boxes)
             if idx % 1 == 0 and cfg.TEST.TENSORBOARD:
                 test_writer.add_summary(summary, idx)
                 pass

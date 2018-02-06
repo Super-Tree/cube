@@ -11,7 +11,7 @@ class train_net(Network):
     def __init__(self, args):
         self.inputs = []
         self.lidar3d_data = tf.placeholder(tf.float32, shape=[None, 4])
-        self.lidar_bv_data = tf.placeholder(tf.float32, shape=[1, 601, 601, 9])
+        self.lidar_bv_data = tf.placeholder(tf.float32, shape=[None, 601, 601, 9])
         self.im_info = tf.placeholder(tf.float32, shape=[None, 3])
         self.gt_boxes_bv = tf.placeholder(tf.float32, shape=[None, 5])
         self.gt_boxes_3d = tf.placeholder(tf.float32, shape=[None, 7])

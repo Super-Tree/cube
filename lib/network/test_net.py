@@ -7,7 +7,7 @@ class test_net(Network):
     def __init__(self,args,trainable=False):
         self.inputs = []
         self.lidar3d_data = tf.placeholder(tf.float32, shape=[None, 4])
-        self.lidar_bv_data = tf.placeholder(tf.float32, shape=[1, 601, 601, 9])
+        self.lidar_bv_data = tf.placeholder(tf.float32, shape=[None, 601, 601, 9])
         self.im_info = tf.placeholder(tf.float32, shape=[None, 3])
         self.calib = tf.placeholder(tf.float32, shape=[None, 12])
         self.layers = dict({'lidar3d_data': self.lidar3d_data,

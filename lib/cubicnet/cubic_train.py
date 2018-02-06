@@ -16,7 +16,7 @@ from tools.data_visualize import pcd_vispy,vispy_init,pcd_vispy_client
 # from multiprocessing import Process,Queue
 # MSG_QUEUE = Queue(200)
 ##================================================
-DEBUG = False
+DEBUG = True
 class msg_qt(object):
     def __init__(self,scans=None, img=None,queue=None, boxes=None, name=None,
                  index=0, vis_size=(800, 600), save_img=False,visible=True, no_gt=False):
@@ -194,7 +194,8 @@ class CubicNet_Train(object):
         cubic_cnn= self.net.get_output('cubic_cnn')
         if DEBUG:
             vispy_init()  # TODO: Essential step(before sess.run) for using vispy beacuse of the bug of opengl or tensorflow
-            # vision_qt = Process(target=pcd_vispy_client, args=(MSG_QUEUE,))
+            # station = pcd_vispy_client(MSG_QUEUE,title='Vision')
+            # vision_qt = Process(target=station.get_thread_data, args=(MSG_QUEUE,))
             # vision_qt.start()
             # print 'Process vision_qt started ...'
 
