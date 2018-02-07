@@ -27,7 +27,7 @@ def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes,method):
         if method =='train' and cfg.TRAIN.USE_AUGMENT_IN_CUBIC_GEN:
             angel = random.rand()*np.pi*2 #[ 0~360]
             scalar = 1.2 - random.rand()*0.4
-            translation = np.random.rand(3, 1) * 0.3
+            translation = np.random.rand(3, 1) * 0.5
             points_mv_ctr_rot_nobound = rot_sca_pc(points_mv_ctr,angel,scalar,translation)
             points_mv_ctr_rot,min_p,ctr_p = bounding_filter(points_mv_ctr_rot_nobound, [0,0,0])
 

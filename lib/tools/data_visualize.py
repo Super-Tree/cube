@@ -11,7 +11,7 @@ from os.path import join as path_add
 
 vispy.set_log_level('CRITICAL', match='-.-')
 folder = path_add(cfg.TEST_RESULT, cfg.RANDOM_STR)
-# os.makedirs(folder)
+os.makedirs(folder)
 #  common functions  ===========================
 def box3d_2conner(box):
     #box : score,x,y,z,l,w,h,type1,type2

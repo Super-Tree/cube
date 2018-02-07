@@ -16,7 +16,7 @@ from tools.data_visualize import pcd_vispy,vispy_init,pcd_vispy_client
 # from multiprocessing import Process,Queue
 # MSG_QUEUE = Queue(200)
 ##================================================
-DEBUG = True
+DEBUG = False
 class msg_qt(object):
     def __init__(self,scans=None, img=None,queue=None, boxes=None, name=None,
                  index=0, vis_size=(800, 600), save_img=False,visible=True, no_gt=False):
@@ -99,7 +99,7 @@ class CubicNet_Train(object):
                     tf.nn.sparse_softmax_cross_entropy_with_logits(logits=cubic_cls_score, labels=cubic_cls_labels))
             else:
                 # alpha = [0.75,0.25]  # 0.25 for label=1
-                gamma = 2
+                gamma = 3
                 rpn_cls_probability = tf.nn.softmax(rpn_cls_score)
                 cubic_cls_probability = tf.nn.softmax(cubic_cls_score)
 
@@ -126,7 +126,7 @@ class CubicNet_Train(object):
 
         with tf.name_scope('train_op'):
             global_step = tf.Variable(1, trainable=False, name='Global_Step')
-            lr = tf.train.exponential_decay(cfg.TRAIN.LEARNING_RATE, global_step, 10000, 0.89, name='decay-Lr')
+            lr = tf.train.exponential_decay(cfg.TRAIN.LEARNING_RATE, global_step, 10000, 0.92, name='decay-Lr')
             train_op = tf.train.AdamOptimizer(lr).minimize(loss, global_step=global_step)
 
         with tf.name_scope('train_cubic'):
@@ -165,7 +165,7 @@ class CubicNet_Train(object):
 
         sess.run(tf.global_variables_initializer())
         if self.args.fine_tune:
-            if False:
+            if True:
                 # #full graph restore
                 print 'Loading pre-trained model weights from {:s}'.format(self.args.weights)
                 self.net.load(self.args.weights, sess, self.saver, True)
@@ -259,12 +259,12 @@ class CubicNet_Train(object):
             if cfg.TRAIN.USE_VALID:
                 with tf.name_scope('valid_cubic_' + str(epo_cnt + 1)):
                     print 'Valid the net at the end of epoch_{} ...'.format(epo_cnt + 1)
-                    roi_bv = self.net.get_output('rpn_rois')[0]
-                    cubu_bv = np.hstack((roi_bv,cubic_cls_labels.reshape(-1,1)))
-                    pred_rpn_ = show_rpn_tf(self.net.lidar_bv_data,cubu_bv)
-                    pred_rpn = tf.reshape(pred_rpn_,(1, 601, 601, -1))
-                    predicted_bbox = tf.summary.image('predict_bbox_bv', pred_rpn)
-                    valid_result = tf.summary.merge([predicted_bbox])
+                    # roi_bv = self.net.get_output('rpn_rois')[0]
+                    # cubu_bv = np.hstack((roi_bv,cubic_cls_labels.reshape(-1,1)))
+                    # pred_rpn_ = show_rpn_tf(self.net.lidar_bv_data,cubu_bv)
+                    # pred_rpn = tf.reshape(pred_rpn_,(1, 601, 601, -1))
+                    # predicted_bbox = tf.summary.image('predict_bbox_bv', pred_rpn)
+                    # valid_result = tf.summary.merge([predicted_bbox])
                     recalls = self.net.get_output('rpn_rois')[2]
                     pred_tp_cnt, gt_cnt = 0., 0.
                     hist = np.zeros((cfg.NUM_CLASS, cfg.NUM_CLASS), dtype=np.float32)
@@ -280,8 +280,8 @@ class CubicNet_Train(object):
                             self.net.gt_boxes_3d: blobs['gt_boxes_3d'],
                             self.net.gt_boxes_corners: blobs['gt_boxes_corners'],
                             self.net.calib: blobs['calib']}
-                        cubic_cls_score_, cubic_cls_labels_, recalls_,valid_result_ = sess.run(
-                            [cubic_cls_score, cubic_cls_labels, recalls,valid_result], feed_dict=feed_dict_)
+                        cubic_cls_score_, cubic_cls_labels_, recalls_ = sess.run(
+                            [cubic_cls_score, cubic_cls_labels, recalls], feed_dict=feed_dict_)
                         # train_writer.add_summary(valid, data_idx)
 
                         pred_tp_cnt = pred_tp_cnt + recalls_[1]
@@ -295,16 +295,17 @@ class CubicNet_Train(object):
                             print 'Valid step: {:d}/{:d} , rpn recall = {:.3f}'\
                                   .format(data_idx + 1,self.val_epoch,float(recalls_[1]) / recalls_[2])
                             print('    class bg precision = {:.3f}  recall = {:.3f}'.format(
-                                (one_hist[0, 0] / (one_hist[0, 0] + one_hist[1, 0])),
-                                (one_hist[0, 0] / (one_hist[0, 0] + one_hist[0, 1]))))
+                                (one_hist[0, 0] / (one_hist[0, 0] + one_hist[1, 0]+1e-6)),
+                                (one_hist[0, 0] / (one_hist[0, 0] + one_hist[0, 1]+1e-6))))
                             print('    class car precision = {:.3f}  recall = {:.3f}'.format(
-                                (one_hist[1, 1] / (one_hist[1, 1] + one_hist[0, 1])),
-                                (one_hist[1, 1] / (one_hist[1, 1] + one_hist[1, 0]))))
+                                (one_hist[1, 1] / (one_hist[1, 1] + one_hist[0, 1]+1e-6)),
+                                (one_hist[1, 1] / (one_hist[1, 1] + one_hist[1, 0]+1e-6))))
                         if data_idx % 20 ==0 and cfg.TRAIN.TENSORBOARD:
-                            train_writer.add_summary(valid_result_, data_idx/20+epo_cnt*1000)
+                            pass
+                            # train_writer.add_summary(valid_result_, data_idx/20+epo_cnt*1000)
 
-                precise_total = hist[1, 1] / (hist[1, 1] + hist[0, 1])
-                recall_total = hist[1, 1] / (hist[1, 1] + hist[1, 0])
+                precise_total = hist[1, 1] / (hist[1, 1] + hist[0, 1]+1e-6)
+                recall_total = hist[1, 1] / (hist[1, 1] + hist[1, 0]+1e-6)
                 recall_rpn = pred_tp_cnt / gt_cnt
                 valid_summary = tf.summary.merge([rpn_recall_smy_op, cubic_recall_smy_op, cubic_prec_smy_op])
                 valid_res = sess.run(valid_summary, feed_dict={epoch_rpn_recall: recall_rpn,
