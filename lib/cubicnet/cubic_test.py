@@ -52,7 +52,7 @@ class CubicNet_Test(object):
         vispy_init()  # TODO: Essential step(before sess.run) for using vispy beacuse of the bug of opengl or tensorflow
         timer = Timer()
         for idx in range(self.epoch):
-            blobs = self.dataset.get_minibatch(idx)
+            blobs = self.dataset.get_minibatch(60)
             feed_dict = {
                 self.net.lidar3d_data: blobs['lidar3d_data'],
                 self.net.lidar_bv_data: blobs['lidar_bv_data'],
@@ -80,17 +80,18 @@ class CubicNet_Test(object):
                 scan = blobs['lidar3d_data']
                 img = blobs['image_data']
                 pred_boxes = np.hstack((rpn_3d_, cubic_result.reshape(-1, 1)*1))
-                # pcd_vispy(scan,img, pred_boxes,no_gt=True,index=idx,
-                #           save_img=cfg.TEST.SAVE_IMAGE,
-                #           visible=True,
-                #           name='CubicNet testing')
-
-                pointcloud = PointCloud_Gen(scan)
-                label_boxes = Boxes_labels_Gen(pred_boxes, ns='Predict')
-                img_ros = Image_Gen(img)
-                pub.publish(pointcloud)
-                img_pub.publish(img_ros)
-                box_pub.publish(label_boxes)
+                if True:
+                    pcd_vispy(scan,img, pred_boxes,no_gt=True,index=idx,
+                              save_img=cfg.TEST.SAVE_IMAGE,
+                              visible=True,
+                              name='CubicNet testing')
+                else:
+                    pointcloud = PointCloud_Gen(scan)
+                    label_boxes = Boxes_labels_Gen(pred_boxes, ns='Predict')
+                    img_ros = Image_Gen(img)
+                    pub.publish(pointcloud)
+                    img_pub.publish(img_ros)
+                    box_pub.publish(label_boxes)
             if idx % 1 == 0 and cfg.TEST.TENSORBOARD:
                 test_writer.add_summary(summary, idx)
                 pass

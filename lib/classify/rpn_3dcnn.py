@@ -5,8 +5,6 @@ import tensorflow as tf
 from tools.data_visualize import pcd_vispy,pcd_show_now
 from network.config import cfg
 
-
-
 DEBUG = False
 
 shape = lambda i: int(np.ceil(np.round(cfg.ANCHOR[i] / cfg.CUBIC_RES[i], 3)))  # Be careful about python number  decimal
@@ -34,8 +32,11 @@ def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes,method):
             x_cub = np.divide(points_mv_ctr_rot[:,0] - min_p[0], cfg.CUBIC_RES[0]).astype(np.int32)
             y_cub= np.divide(points_mv_ctr_rot[:,1] - min_p[1], cfg.CUBIC_RES[1]).astype(np.int32)
             z_cub = np.divide(points_mv_ctr_rot[:,2] - min_p[2], cfg.CUBIC_RES[2]).astype(np.int32)
-            # feature = np.hstack((x_cub.reshape(-1,1)-(shape(0)/2),y_cub.reshape(-1,1)-(shape(1)/2),z_cub.reshape(-1,1)-(shape(2)/2),points_mv_ctr_rot[:,3].reshape(-1,1))) #points_mv_ctr_rot
-            feature = np.hstack((np.ones([len(points_mv_ctr_rot[:,3]),1]),points_mv_ctr_rot[:,3].reshape(-1,1))) #points_mv_ctr_rot
+            if not DEBUG:
+                feature = np.hstack((np.ones([len(points_mv_ctr_rot[:,3]),1]),points_mv_ctr_rot[:,3].reshape(-1,1))) #points_mv_ctr_rot
+            else:
+                feature = np.hstack((x_cub.reshape(-1,1)-(shape(0)/2),y_cub.reshape(-1,1)-(shape(1)/2),z_cub.reshape(-1,1)-(shape(2)/2),points_mv_ctr_rot[:,3].reshape(-1,1))) #points_mv_ctr_rot
+
         else: # method: test
             x_cub = np.divide(points_mv_min[:, 0], cfg.CUBIC_RES[0]).astype(np.int32)
             y_cub = np.divide(points_mv_min[:, 1], cfg.CUBIC_RES[1]).astype(np.int32)
@@ -48,8 +49,10 @@ def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes,method):
 
         if DEBUG:
             box_mv = [box[0] - box[0], box[1] - box[1], box[2] - box[2],shape(0), shape(1),shape(2),1,1,1]
-            display_stack.append(pcd_vispy(cubic_feature.reshape(-1, 4),name='grid_'+str(iidx), boxes=np.array(box_mv),visible=False,multi_vis=True))
-            display_stack.append(pcd_vispy(points_mv_ctr.reshape(-1, 4),name='origin_'+str(iidx), boxes=np.array(box_mv),visible=False,multi_vis=True))
+            box_gt_mv = [box[0] - box[0], box[1] - box[1], box[2] - box[2], cfg.ANCHOR[0], cfg.ANCHOR[1], cfg.ANCHOR[2],1, 1, 1]
+
+            display_stack.append(pcd_vispy(cubic_feature.reshape(-1, 4),name='grid_'+str(iidx), boxes=np.array(box_mv),visible=False,point_size =0.1,multi_vis=True))
+            display_stack.append(pcd_vispy(points_mv_ctr.reshape(-1, 4),name='origin_'+str(iidx), boxes=np.array(box_gt_mv),visible=False,point_size =0.1,multi_vis=True))
         # break
     if DEBUG:
         pcd_show_now()
@@ -155,7 +158,7 @@ if __name__ == '__main__':
 
     dataset = dataset_KITTI_train(arg)
     DEBUG=True
-
+    cubic_size = [shape(0), shape(1), shape(2), 4]
     while True:
 
         idx = input('Type a new index: ')

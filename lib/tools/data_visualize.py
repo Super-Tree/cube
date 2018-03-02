@@ -153,7 +153,7 @@ class pcd_vispy_client(object):# TODO: qt-client TO BE RE-WRITE
                 vispy.app.run()
                 a =[]
 
-def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800, 600),save_img=False,visible=True,no_gt=False,multi_vis=False):
+def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800, 600),save_img=False,visible=True,no_gt=False,multi_vis=False,point_size = 0.02):
     if multi_vis:
         canvas = vispy.scene.SceneCanvas(title=name, keys='interactive', size=vis_size,show=True)
     else:
@@ -165,7 +165,7 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
     pos = scans[:, :3]
     scatter = visuals.Markers()
     scatter.set_gl_state('translucent', depth_test=False)
-    scatter.set_data(pos, edge_width=0, face_color=(1, 1, 1, 1), size=0.02, scaling=True)
+    scatter.set_data(pos, edge_width=0, face_color=(1, 1, 1, 1), size=point_size, scaling=True)
 
     vb.camera = 'turntable'
     vb.camera.elevation = 21.0
@@ -173,6 +173,9 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
     vb.camera.azimuth = -75.5
     vb.camera.scale_factor = 32.7
     vb.add(scatter)
+
+    axis = visuals.XYZAxis()
+    vb.add(axis)
 
     if img is None:
         img=np.zeros(shape=[1,1,3],dtype=np.float32)
@@ -190,7 +193,7 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
         gt_indice = np.where(boxes[:, -1] == 4)[0]
         gt_cnt = len(gt_indice)
         i = 0
-        for box in boxes:
+        for k,box in enumerate(boxes):
             radio = max(box[6] - 0.5, 0.005)*2.0
             color = (0, radio, 0, 1)  # Green
 
@@ -217,19 +220,18 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
             elif (box[-1]+box[-2]) == 0: # True negative cls rpn divided by cube
                 vb.add(line_box(box,color=color))
             elif (box[-1]+box[-2]) == 1: # False negative cls rpn divided by cube
-                vb.add(line_box(box,color='red'))
-            elif (box[-1]+box[-2]) == 2: # False positive cls rpn divided by cube
                 if no_gt:
                     pass
                     vb.add(line_box(box, color='yellow'))
                 else:
-                    pass
+                    vb.add(line_box(box,color='red'))
+            elif (box[-1]+box[-2]) == 2: # False positive cls rpn divided by cube
                     vb.add(line_box(box, color='blue'))
             elif (box[-1]+box[-2]) == 3: # True positive cls rpn divided by cube
                 vb.add(line_box(box,color='yellow'))
-            # text = visuals.Text(text='vertex:0', color='white', face='OpenSans', font_size=12,
-            #                     pos=[box[0]-box[3]/2, box[1]-box[4]/2, box[2]-box[5]/2], anchor_x='left', anchor_y='top', font_manager=None)
-            # vb.add(text)
+            text = visuals.Text(text=str(k), color=color, face='OpenSans', font_size=12,
+                                pos=[box[0]-box[3]/2, box[1]-box[4]/2, box[2]-box[5]/2], anchor_x='left', anchor_y='top', font_manager=None)
+            vb.add(text)
 
     if save_img:
         fileName = path_add(folder,str(index).zfill(6)+'.png')

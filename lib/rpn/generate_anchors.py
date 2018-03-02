@@ -34,7 +34,7 @@ from network.config import cfg
 #       [ -79., -167.,   96.,  184.],
 #       [-167., -343.,  184.,  360.]])
 
-def generate_anchors_bv(base_size=[[3.9, 3.9]], res=0.1):
+def generate_anchors_bv(base_size=[[4.0, 4.0]], res=0.1):
     """
     Generate anchor (reference) windows for lidar bird view
     """
