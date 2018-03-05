@@ -100,7 +100,7 @@ class CubicNet_Train(object):
         for data_idx in range(0,360,2):  # DO NOT EDIT the "training_series",for the latter shuffle
             run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
             run_metadata = tf.RunMetadata()
-            feed_dict = self.cubic_rpn_grid(30, box_idx=0, angel=0, scalar=float(data_idx)/180.*1.0, translation=[0, 0, 0])
+            feed_dict = self.cubic_rpn_grid(30, box_idx=0, angel=data_idx, scalar=float(data_idx)/180.*1.0, translation=[0, 0, 0])
             timer.tic()
             cubic_cls_score_ = sess.run(cubic_cls_score, feed_dict=feed_dict, options=run_options,run_metadata=run_metadata)
             timer.toc()
