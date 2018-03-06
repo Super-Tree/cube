@@ -228,24 +228,21 @@ class CubicNet_Train(object):
                 cubic_car_cls_prec = one_hist[1, 1] / (one_hist[1, 1] + one_hist[0, 1]+1e-5)
                 cubic_car_cls_recall = one_hist[1, 1] / (one_hist[1, 1] + one_hist[1, 0]+1e-5)
 
-                if (iter % 4000==0 and cfg.TRAIN.DEBUG_TIMELINE) or (iter == 100):
-                    #chrome://tracing
-                    trace = timeline.Timeline(step_stats=run_metadata.step_stats)
-                    trace_file = open(cfg.LOG_DIR+'/' +'training-step-'+ str(iter).zfill(7) + '.ctf.json', 'w')
-                    trace_file.write(trace.generate_chrome_trace_format(show_memory=False))
-                    trace_file.close()
                 if iter % cfg.TRAIN.ITER_DISPLAY == 0:
-                    print 'Iter: %d/%d, speed: %.3fs/iter, loss: %.3f, rpn_recall: %.3f, cubic classify precise: %.3f,recall: %.3f' % \
-                          (iter, self.args.epoch_iters * self.epoch,timer.average_time,loss_,recall_RPN / cfg.TRAIN.ITER_DISPLAY,cubic_car_cls_prec,cubic_car_cls_recall)
+                    print 'Iter: %d/%d, Serial_num: %s, speed: %.3fs/iter, loss: %.3f, rpn_recall: %.3f, cubic classify precise: %.3f,recall: %.3f' % \
+                          (iter,self.args.epoch_iters * self.epoch, blobs['serial_num'],timer.average_time,loss_,recall_RPN / cfg.TRAIN.ITER_DISPLAY,cubic_car_cls_prec,cubic_car_cls_recall)
                     recall_RPN = 0.
                     print 'divine: ', str(cubic_result).translate(None,'\n')
                     print 'labels: ', str(cubic_cls_labels_).translate(None,'\n'),'\n'
                 if iter % 20 == 0 and cfg.TRAIN.TENSORBOARD:
                     train_writer.add_summary(merged_, iter)
                     pass
-                if iter % cfg.TRAIN.SNAPSHOT_ITERS == 0:
-                    self.snapshot(sess, iter)
-                    pass
+                if (iter % 4000==0 and cfg.TRAIN.DEBUG_TIMELINE) or (iter == 100):
+                    #chrome://tracing
+                    trace = timeline.Timeline(step_stats=run_metadata.step_stats)
+                    trace_file = open(cfg.LOG_DIR+'/' +'training-step-'+ str(iter).zfill(7) + '.ctf.json', 'w')
+                    trace_file.write(trace.generate_chrome_trace_format(show_memory=False))
+                    trace_file.close()
                 if DEBUG:
                     scan = blobs['lidar3d_data']
                     gt_box3d = blobs['gt_boxes_3d'][:, (0, 1, 2, 3, 4, 5, 6)]
@@ -255,7 +252,9 @@ class CubicNet_Train(object):
                     # msg = msg_qt(scans=scan, boxes=bbox,name='CubicNet training')
                     # MSG_QUEUE.put(msg)
                     pcd_vispy(scan, boxes=bbox,name='CubicNet training')
-            random.shuffle(training_series)  # shuffle the training series
+            if cfg.TRAIN.EPOCH_MODEL_SAVE:
+                self.snapshot(sess, iter)
+                pass
             if cfg.TRAIN.USE_VALID:
                 with tf.name_scope('valid_cubic_' + str(epo_cnt + 1)):
                     print 'Valid the net at the end of epoch_{} ...'.format(epo_cnt + 1)
@@ -314,7 +313,7 @@ class CubicNet_Train(object):
                 train_writer.add_summary(valid_res, epo_cnt + 1)
                 print 'Validation of epoch_{}: rpn_recall {:.3f} cubic_precision = {:.3f}  cubic_recall = {:.3f}'\
                       .format(epo_cnt + 1,recall_rpn,precise_total,recall_total)
-        self.snapshot(sess, iter, final=True)
+            random.shuffle(training_series)  # shuffle the training series
         print 'Training process has done, enjoy every day !'
 
 def network_training(network, data_set, args):
