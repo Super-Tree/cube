@@ -16,7 +16,7 @@ from tools.data_visualize import pcd_vispy,vispy_init,pcd_vispy_client
 # from multiprocessing import Process,Queue
 # MSG_QUEUE = Queue(200)
 ##================================================
-DEBUG = True
+DEBUG = False
 class msg_qt(object):
     def __init__(self,scans=None, img=None,queue=None, boxes=None, name=None,
                  index=0, vis_size=(800, 600), save_img=False,visible=True, no_gt=False):

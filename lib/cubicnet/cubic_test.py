@@ -52,7 +52,7 @@ class CubicNet_Test(object):
         vispy_init()  # TODO: Essential step(before sess.run) for using vispy beacuse of the bug of opengl or tensorflow
         timer = Timer()
         for idx in range(self.epoch):
-            blobs = self.dataset.get_minibatch(60)
+            blobs = self.dataset.get_minibatch(idx)
             feed_dict = {
                 self.net.lidar3d_data: blobs['lidar3d_data'],
                 self.net.lidar_bv_data: blobs['lidar_bv_data'],

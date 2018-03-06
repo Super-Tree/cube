@@ -135,12 +135,8 @@ class dataset_KITTI_train(object):  # read txt files one by one
         return filtered_roidb
 
     def load_roidb(self):
-        if socket.gethostname() == 'hexindong':
-            cache_file = os.path.join(self._data_path, 'train_gt_roidb_hxd.pkl')
-            val_cache_file = os.path.join(self._data_path, 'valid_gt_roidb_hxd.pkl')
-        else:
-            cache_file = os.path.join(self._data_path, 'train_gt_roidb_sti.pkl')
-            val_cache_file = os.path.join(self._data_path, 'valid_gt_roidb_sti.pkl')
+        cache_file = os.path.join(self._data_path, 'train_gt_roidb_LOCAL.pkl')
+        val_cache_file = os.path.join(self._data_path, 'valid_gt_roidb_LOCAL.pkl')
         if os.path.exists(cache_file) & os.path.exists(val_cache_file):
             print 'Dataset will be loaded from existing cache file'
             with open(cache_file, 'rb') as fid:

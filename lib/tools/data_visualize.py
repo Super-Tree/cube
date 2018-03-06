@@ -11,7 +11,7 @@ from os.path import join as path_add
 
 vispy.set_log_level('CRITICAL', match='-.-')
 folder = path_add(cfg.TEST_RESULT, cfg.RANDOM_STR)
-os.makedirs(folder)
+
 #  common functions  ===========================
 def box3d_2conner(box):
     #box : score,x,y,z,l,w,h,type1,type2
@@ -125,6 +125,8 @@ class pcd_vispy_client(object):# TODO: qt-client TO BE RE-WRITE
                     self.vb.add(line_box(box,color='yellow'))
 
         if save_img:
+            if not os.path.exists(folder):
+                os.makedirs(folder)
             fileName = path_add(folder,str(index).zfill(6)+'.png')
             res = self.canvas.render(bgcolor='black')[:,:,0:3]
             vispy_file.write_png(fileName, res)
@@ -561,9 +563,6 @@ if __name__ == '__main__':
     import time
     import virtkey
 
-    v = virtkey.virtkey()
-    v.press_unicode(ord("f1"))
-    v.release_unicode(ord("f1"))
     arg = edict()
     arg.imdb_type = 'kitti'
     arg.method = 'train'
