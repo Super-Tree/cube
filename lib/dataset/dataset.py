@@ -455,7 +455,8 @@ class dataset_KITTI_train(object):  # read txt files one by one
                       'gt_boxes_bv': gt_boxes_bv,
                       'gt_boxes_3d': gt_boxes_3d,
                       'gt_boxes_corners': gt_boxes_corners,
-                      'im_info': np.array([[lidar_bv_blob.shape[1], lidar_bv_blob.shape[2], im_scales[0]]],dtype=np.float32)
+                      'im_info': np.array([[lidar_bv_blob.shape[1], lidar_bv_blob.shape[2], im_scales[0]]],dtype=np.float32),
+                      'serial_num': dataset[idx]['lidar_bv_path'].split('/')[-1][0:6]
                       })
 
         return blobs

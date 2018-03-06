@@ -12,6 +12,10 @@ from dataset.dataset import dataset_STI_train, dataset_KITTI_test,dataset_KITTI_
 from easydict import EasyDict as edict
 from tools.data_visualize import pcd_vispy, pcd_show_now
 
+import matplotlib.pyplot as plt
+
+
+
 DEBUG = False
 BATCH_CNT = 2
 shape = lambda i: int(np.ceil(np.round(cfg.ANCHOR[i] / cfg.CUBIC_RES[i], 3)))  # Be careful about python number  decimal
@@ -96,23 +100,38 @@ class CubicNet_Train(object):
         cubic_cls_score = tf.nn.softmax(self.result)
         timer = Timer()
         vispy_init()
-
-        for data_idx in range(0,360,2):  # DO NOT EDIT the "training_series",for the latter shuffle
+        res =[]
+        loop_parameters = np.arange(0.0,360.,2)
+        for data_idx in loop_parameters:  # DO NOT EDIT the "training_series",for the latter shuffle
             run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
             run_metadata = tf.RunMetadata()
-            feed_dict = self.cubic_rpn_grid(30, box_idx=0, angel=data_idx, scalar=float(data_idx)/180.*1.0, translation=[0, 0, 0])
+            feed_dict = self.cubic_rpn_grid(30, box_idx=2,
+                                            angel=data_idx,
+                                            scalar=1,#float(data_idx)/180.*1.0,
+                                            translation=[0, 0, 0])
             timer.tic()
             cubic_cls_score_ = sess.run(cubic_cls_score, feed_dict=feed_dict, options=run_options,run_metadata=run_metadata)
             timer.toc()
             cubic_cls_score_ = np.array(cubic_cls_score_)
             cubic_result = cubic_cls_score_.argmax(axis=1)
-            print 'rotation: {:3d}  score: {:>8,.7f} {:>8,.7f}  result: {}'.format(data_idx,cubic_cls_score_[0,0],cubic_cls_score_[0,1],cubic_result[0])
+            res.append(cubic_cls_score_[0,1])
+            # print 'rotation: {:3d}  score: {:>8,.7f} {:>8,.7f}  result: {}'.format(data_idx,cubic_cls_score_[0,0],cubic_cls_score_[0,1],cubic_result[0])
+
+        plt.plot(loop_parameters, res)
+        plt.grid(True, color='black', linestyle='--', linewidth='1')
+        plt.title('Roation of Car')
+        plt.xlabel('angle')
+        plt.ylabel('score')
+        plt.legend(['positive'])
+        plt.savefig('Roation_of_Car2.png')
+        plt.show()
 
     def cubic_rpn_grid(self, data_idx, box_idx, angel, scalar, translation):
         blobs = self.dataset.get_minibatch(data_idx)  # get one batch
         lidarPoints = blobs['lidar3d_data']
         # rpnBoxes = blobs['gt_boxes_3d'][box_idx]
-        rpnBoxes=np.array([10.2232,2.67,-0.3726,4,4,2,0.9])
+        rpnBoxes=np.array([10.832,2.4,-0.3726,4,4,2,0.9])
+        # rpnBoxes = np.array([17.832, -3.65, -0.3726, 4, 4, 2, 0.9])
         res = []
         display_stack = []
         if DEBUG:
