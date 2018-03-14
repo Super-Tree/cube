@@ -431,9 +431,10 @@ class dataset_KITTI_train(object):  # read txt files one by one
         lidar3d_blob = lidar3d.reshape((-1,4))
 
         gt_inds = np.where(dataset[idx]['gt_classes'] != 0)[0]
-        gt_boxes_bv = np.empty((len(gt_inds), 5), dtype=np.float32)
+        gt_boxes_bv = np.empty((len(gt_inds), 6), dtype=np.float32)
         gt_boxes_bv[:, 0:4] = dataset[idx]['boxes_bv'][gt_inds, :]
         gt_boxes_bv[:, 4] = dataset[idx]['gt_classes'][gt_inds]
+        gt_boxes_bv[:, 5] = dataset[idx]['gt_classes'][gt_inds]
 
         # gt boxes 3d: (x, y, z, l, w, h, cls)
         gt_boxes_3d = np.empty((len(gt_inds), 7), dtype=np.float32)
@@ -474,6 +475,7 @@ class dataset_KITTI_test(object):  # read txt files one by one
             self._data_path = osp.join(osp.dirname(__file__), '../../data', 'drive_0064')  # data path
         else:
             self._data_path = osp.join(osp.dirname(__file__), '../../data', 'testing')  # data path
+
         self._class_to_ind = dict(zip(self._classes, xrange(self.num_classes)))
         self.inputIndex = self.get_fileIndex(self._data_path)
         self.input_num = len(self.inputIndex['test_index'])
