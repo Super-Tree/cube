@@ -29,7 +29,7 @@ __C.RPN_POINTS_REMAIN = 600
 # effect on GroundTruth range filter(dataset_STI_train.filter) and  pseudo-rpn generate in function 'proposal_layer_3d_STI'
 # when change the detection range ,must delete the cache file in dataset
 __C.DETECTION_RANGE = 20.0
-__C.RANDOM_STR =''.join(random.sample(string.ascii_letters, 4))
+__C.RANDOM_STR =''.join(random.sample(string.uppercase, 4))
 if spawn.find_executable("nvcc",path="/usr/local/cuda-8.0/bin/"):
     # Use GPU implementation of non-maximum suppression
     __C.USE_GPU_NMS = True

@@ -16,7 +16,7 @@ from tools.data_visualize import pcd_vispy,vispy_init,pcd_vispy_client
 # from multiprocessing import Process,Queue
 # MSG_QUEUE = Queue(200)
 ##================================================
-DEBUG = False
+DEBUG = True
 class msg_qt(object):
     def __init__(self,scans=None, img=None,queue=None, boxes=None, name=None,
                  index=0, vis_size=(800, 600), save_img=False,visible=True, no_gt=False):
@@ -136,10 +136,12 @@ class CubicNet_Train(object):
             # tf.summary.scalar('cubic_cross_entropy', cubic_cross_entropy)
             recall_RPN = 0.
             # bv_anchors = self.net.get_output('rpn_anchors_label')[2]
-            # roi_bv = self.net.get_output('rpn_rois')[0]
+            # roi_bv = self.net.get_output('rpn_rois')[0] # (x1,y1),(x2,y2),score,label
             # data_bv = self.net.lidar_bv_data
-            # data_gt = self.net.gt_boxes_bv
-            # image_rpn = tf.reshape(show_rpn_tf(data_bv, data_gt, bv_anchors, roi_bv), (1, 601, 601, -1))
+            # data_gt = self.net.gt_boxes_bv # (x1,y1),(x2,y2),label
+            # # gt_box = tf.concat([data_gt,data_gt[:, 4]], axis=1)
+            # bbox = tf.concat([roi_bv,data_gt],axis=0)
+            # image_rpn = tf.reshape(show_rpn_tf(data_bv, bbox), (1, 601, 601, -1))
             # tf.summary.image('lidar_bv_test', image_rpn)
             glb_var = tf.global_variables()
             for i in range(len(glb_var)):

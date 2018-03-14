@@ -355,7 +355,7 @@ class Network(object):
             rpn_rois_bv, rpn_rois_3d,rpn_recall = tf.py_func(proposal_layer_py_3d,
                                                   [input[0], input[1], input[2], input[3], cfg_key, _feat_stride],
                                                   [tf.float32, tf.float32, tf.float32])
-            rpn_rois_bv = tf.reshape(rpn_rois_bv, [-1, 6], name='rpn_rois_bv')
+            rpn_rois_bv = tf.reshape(rpn_rois_bv, [-1, 6], name='rpn_rois_bv') # (x1,y1),(x2,y2),score,label
             rpn_rois_3d = tf.reshape(rpn_rois_3d, [-1, 8], name='rpn_rois_3d')
         return rpn_rois_bv, rpn_rois_3d, rpn_recall
 

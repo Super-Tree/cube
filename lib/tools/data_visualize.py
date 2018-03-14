@@ -11,7 +11,7 @@ from os.path import join as path_add
 
 vispy.set_log_level('CRITICAL', match='-.-')
 folder = path_add(cfg.TEST_RESULT, cfg.RANDOM_STR)
-
+os.makedirs(folder)
 #  common functions  ===========================
 def box3d_2conner(box):
     #box : score,x,y,z,l,w,h,type1,type2
@@ -258,7 +258,7 @@ def pcd_show_now():
 
 def vispy_init():
     import vispy
-    vispy.use('pyqt4')
+    # vispy.use('pyqt4')
     # vispy.app.use_app()
     v = vispy.app.Canvas()
 
@@ -509,6 +509,7 @@ def draw_3dPoints_box(lidar=None, Boxes3D=None, is_grid=True, fig=None, draw_axi
 
     mlab.show()
 
+#  using tensorboard ===========================
 def show_rpn_tf(img, cls_bv):#TODO
     bv_data = tf.reshape(img[:, :, :, 8], (601, 601, 1))
     bv_data = scales_to_255(bv_data, 0, 3, tf.float32)
@@ -519,15 +520,13 @@ def show_rpn_tf(img, cls_bv):#TODO
 def show_bbox(bv_image, cls_bv):
     cnt = cls_bv.shape[0]
     for i in range(cnt):
-        if cls_bv[i, 0] == 0:
-            cv2.rectangle(bv_image, (cls_bv[i, 0], cls_bv[i, 1]), (cls_bv[i, 2], cls_bv[i, 3]), color=(0, 30, 0))
-        else:
+        if cls_bv[i, 4] == 1:
             cv2.rectangle(bv_image, (cls_bv[i, 0], cls_bv[i, 1]), (cls_bv[i, 2], cls_bv[i, 3]), color=(60, 60, 0))
+        else:
+            cv2.rectangle(bv_image, (cls_bv[i, 0], cls_bv[i, 1]), (cls_bv[i, 2], cls_bv[i, 3]), color=(0, 30, 0))
     # filePath = "/media/disk4/deeplearningoflidar/he/CombiNet-he/output/"
     # cv2.imwrite(filePath+fileName,bv_image)
     return bv_image
-
-#  normal functions ======================
 
 def test_show_rpn_tf(img, box_pred=None):
     bv_data = tf.reshape(img[:, :, :, 8],(601, 601, 1))

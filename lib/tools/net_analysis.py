@@ -13,8 +13,9 @@ from easydict import EasyDict as edict
 from tools.data_visualize import pcd_vispy, pcd_show_now
 
 import matplotlib.pyplot as plt
-
-
+#
+# from multiprocessing import Process,Queue
+# MSG_QUEUE = Queue(200)
 
 DEBUG = False
 BATCH_CNT = 2
@@ -71,7 +72,7 @@ class cubic(object):
 
 class CubicNet_Train(object):
     def __init__(self):
-        self.weights = '/home/hexindong/ws_dl/pyProj/cubic-local/MODEL_weights/CUBIC_3_F2_SIZE30x30x15/weights_7W-7W/CubicNet_iter_64000.ckpt'
+        self.weights = '/home/hexindong/ws_dl/pyProj/CubicNet-server/output/msfg/CubicNet_iter_108402.ckpt'
         arg = edict()
         arg.imdb_type = 'kitti'
         arg.use_demo = True
@@ -101,14 +102,14 @@ class CubicNet_Train(object):
         timer = Timer()
         vispy_init()
         res =[]
-        loop_parameters = np.arange(0.0,360.,2)
+        loop_parameters = np.arange(0,360,2)
         for data_idx in loop_parameters:  # DO NOT EDIT the "training_series",for the latter shuffle
             run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
             run_metadata = tf.RunMetadata()
-            feed_dict = self.cubic_rpn_grid(30, box_idx=2,
+            feed_dict = self.cubic_rpn_grid(30, box_idx=0,
                                             angel=data_idx,
-                                            scalar=1,#float(data_idx)/180.*1.0,
-                                            translation=[0, 0, 0])
+                                            scalar=1.0,#float(data_idx)/180.*1.0,
+                                            translation=[0, 0,0])
             timer.tic()
             cubic_cls_score_ = sess.run(cubic_cls_score, feed_dict=feed_dict, options=run_options,run_metadata=run_metadata)
             timer.toc()
@@ -119,18 +120,18 @@ class CubicNet_Train(object):
 
         plt.plot(loop_parameters, res)
         plt.grid(True, color='black', linestyle='--', linewidth='1')
-        plt.title('Roation of Car')
-        plt.xlabel('angle')
+        plt.title('Rubust Test')
+        plt.xlabel('rotated angle metric:degree')
         plt.ylabel('score')
         plt.legend(['positive'])
-        plt.savefig('Roation_of_Car2.png')
+        plt.savefig('Rotation.png')
         plt.show()
 
     def cubic_rpn_grid(self, data_idx, box_idx, angel, scalar, translation):
         blobs = self.dataset.get_minibatch(data_idx)  # get one batch
         lidarPoints = blobs['lidar3d_data']
         # rpnBoxes = blobs['gt_boxes_3d'][box_idx]
-        rpnBoxes=np.array([10.832,2.4,-0.3726,4,4,2,0.9])
+        rpnBoxes=np.array([10.832,2.4,-0.6,4,4,2,0.9])
         # rpnBoxes = np.array([17.832, -3.65, -0.3726, 4, 4, 2, 0.9])
         res = []
         display_stack = []
@@ -170,10 +171,10 @@ class CubicNet_Train(object):
                     x_cub, y_cub, z_cub] = show_feature  # TODO:select&add feature # points_mv_ctr  # using center coordinate system
                 display_stack.append(
                     pcd_vispy(cubic_show_feature.reshape(-1, 4), name='grid_' + str(iidx), boxes=np.array(box_mv),
-                              visible=False, point_size=0.02, multi_vis=True))
+                              visible=False, point_size=0.04, multi_vis=True))
                 display_stack.append(
                     pcd_vispy(points_mv_ctr.reshape(-1, 4), name='origin_' + str(iidx), boxes=np.array(box_gt_mv),
-                              visible=False, point_size=0.02, multi_vis=True))
+                              visible=False, point_size=0.04, multi_vis=True))
         if DEBUG:
             pcd_show_now()
         stack_size = np.concatenate((np.array([-1]), cubic_size))

@@ -154,7 +154,7 @@ if __name__ == '__main__':
     from easydict import EasyDict as edict
 
     arg = edict()
-    arg.imdb_type = 'sti'
+    arg.imdb_type = 'kitti'
 
     dataset = dataset_KITTI_train(arg)
     DEBUG=True

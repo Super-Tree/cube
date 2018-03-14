@@ -18,17 +18,19 @@ class CubicNet_Test(object):
 
     def testing(self, sess, test_writer):
         ##=======================================
-        if VISION_DEBUG:
-            import rospy
-            from sensor_msgs.msg import PointCloud,Image
-            from visualization_msgs.msg import MarkerArray, Marker
-            from tools.data_visualize import Boxes_labels_Gen, Image_Gen,PointCloud_Gen
+        # if VISION_DEBUG:
+            # import rospy
+            # from sensor_msgs.msg import PointCloud,Image
+            # from visualization_msgs.msg import MarkerArray, Marker
+            # from tools.data_visualize import Boxes_labels_Gen, Image_Gen,PointCloud_Gen
+            #
+            # rospy.init_node('rostensorflow')
+            # pub = rospy.Publisher('prediction', PointCloud, queue_size=1000)
+            # img_pub = rospy.Publisher('images_rgb', Image, queue_size=1000)
+            # box_pub = rospy.Publisher('label_boxes', MarkerArray, queue_size=1000)
+            # rospy.loginfo("ROS begins ...")
 
-            rospy.init_node('rostensorflow')
-            pub = rospy.Publisher('prediction', PointCloud, queue_size=1000)
-            img_pub = rospy.Publisher('images_rgb', Image, queue_size=1000)
-            box_pub = rospy.Publisher('label_boxes', MarkerArray, queue_size=1000)
-            rospy.loginfo("ROS begins ...")
+
         ##=======================================
         with tf.name_scope('view_cubic_rpn'):
             roi_bv = self.net.get_output('rpn_rois')[0]
@@ -51,7 +53,8 @@ class CubicNet_Test(object):
         rpn_3d = tf.reshape(self.net.get_output('rpn_rois')[1],[-1,8])
         vispy_init()  # TODO: Essential step(before sess.run) for using vispy beacuse of the bug of opengl or tensorflow
         timer = Timer()
-        for idx in range(self.epoch):
+        for idx in range(0,self.epoch):
+            # index_ = input('Type a new index: ')
             blobs = self.dataset.get_minibatch(idx)
             feed_dict = {
                 self.net.lidar3d_data: blobs['lidar3d_data'],
@@ -80,10 +83,13 @@ class CubicNet_Test(object):
                 scan = blobs['lidar3d_data']
                 img = blobs['image_data']
                 pred_boxes = np.hstack((rpn_3d_, cubic_result.reshape(-1, 1)*1))
+                # keep = np.where(cubic_result ==1)
+                # pred_boxes = rpn_3d_[keep]
                 if True:
-                    pcd_vispy(scan,img, pred_boxes,no_gt=True,index=idx,
-                              save_img=cfg.TEST.SAVE_IMAGE,
-                              visible=True,
+                    # pcd_vispy(scan,img,no_gt=True,index=idx,
+                    pcd_vispy(scan, img, pred_boxes, no_gt=True, index=idx,
+                              save_img=True,#cfg.TEST.SAVE_IMAGE,
+                              visible=False,
                               name='CubicNet testing')
                 else:
                     pointcloud = PointCloud_Gen(scan)

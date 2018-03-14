@@ -8,8 +8,8 @@ import random
 import mayavi.mlab as mlab  # 3d point
 import cPickle as pickle
 
-# from sensor_msgs.msg import PointCloud, ChannelFloat32
-# from geometry_msgs.msg import Point32
+from sensor_msgs.msg import PointCloud, ChannelFloat32
+from geometry_msgs.msg import Point32
 
 import os.path as osp
 import sys
@@ -245,7 +245,7 @@ def draw_gt_boxes3d(gt_boxes3d, fig, scores=None, color=(1, 1, 1), scan=None, li
                 (scan[:, 1] >= ymin) & (scan[:, 1] <= ymax) &
                 (scan[:, 2] >= zmin) & (scan[:, 2] <= zmax)
             )[0])
-            mycolor = (0.1, 0.1, 0.1)
+            mycolor = (0.0, 0.5, 0.5)
             mlab.text3d(b[0, 0], b[0, 1], b[0, 2], '%d' % inds_inside, scale=(0.4, 0.4, 0.4), color=mycolor, figure=fig)
 
             mlab.text3d(b[1, 0], b[1, 1], b[1, 2], '1', scale=(0.3, 0.3, 0.3), color=mycolor, figure=fig)
@@ -277,21 +277,19 @@ def draw_gt_boxes3d(gt_boxes3d, fig, scores=None, color=(1, 1, 1), scan=None, li
 
 
 def video_producer():
-    img_path = '/home/hexindong/ws_dl/pyProj/MV3D_TF/data/Result_0064/'
+    img_path = '/home/hexindong/ws_dl/pyProj/cubic-local/test_result/OFHZ/'
 
     f = os.listdir(img_path)
     f.sort()
-    img = cv2.imread('/home/hexindong/ws_dl/pyProj/MV3D_TF/data/Result_0064/000000.png')
-    cv2.imshow('testResult', img)
-
-    videoWriter = cv2.VideoWriter('/home/hexindong/ws_dl/pyProj/MV3D_TF/demo_0064_sti13W.mp4',
-                                  cv2.VideoWriter_fourcc(*'XVID'), fps=8, frameSize=(1000, 1000))
+    videoWriter = cv2.VideoWriter('/home/hexindong/Desktop/Drive0064-Man.mp4',cv2.cv.CV_FOURCC(*'PIM1'),fps=20, frameSize=(800, 600))
 
     for i in f:
         img = cv2.imread(img_path + i)
-        # cv2.imshow('testResult',img)
+        cv2.imshow('testResult',img)
         videoWriter.write(img)
+        print str(i)
 
+    videoWriter.release()
 
 def analyse_npy_data(npy_path):
     if not os.path.isfile(npy_path):
@@ -397,8 +395,6 @@ def load_kitti_calib(filenames):
             'Tr_velo2cam': Tr_velo_to_cam.reshape(3, 4)}
 
 
-
-
 def draw_lidar(lidar, is_grid=True, fig=None, draw_axis=True):
     pxs = lidar[:, 0]
     pys = lidar[:, 1]
@@ -459,7 +455,6 @@ def scale_to_255(a, min, max, dtype=np.uint8):
         Optionally specify the data type of the output (default is uint8)
     """
     return (((a - min) / float(max - min)) * 255).astype(dtype)
-
 
 def data_show(path, index=21):
     # calibration ============================
@@ -866,20 +861,20 @@ def rename_bat(path):
 
 
 if __name__ == '__main__':
-    path ='/home/hexindong/DATASET/stidataset/LM120-170829-1743/pcd/'
-    rename_bat(path)
-    libel_fname= '/home/hexindong/DATASET/stidataset/LM120-170829-1743/label/result.txt'
-    new_lines=[]
-    with open(libel_fname, 'r') as f:
-        lines = f.readlines()
-    for line in lines:
-        line = line.replace('LM120-170829-1743','170829-1744-LM120')
-        new_lines.append(line)
-    f2 = open('/home/hexindong/DATASET/stidataset/LM120-170829-1743/label/result_mo.txt', 'w')
-    for line in new_lines:
-        f2.write(line)
-    f2.close()
-    print 'Done !'
+    # path ='/home/hexindong/DATASET/stidataset/LM120-170829-1743/pcd/'
+    # rename_bat(path)
+    # libel_fname= '/home/hexindong/DATASET/stidataset/LM120-170829-1743/label/result.txt'
+    # new_lines=[]
+    # with open(libel_fname, 'r') as f:
+    #     lines = f.readlines()
+    # for line in lines:
+    #     line = line.replace('LM120-170829-1743','170829-1744-LM120')
+    #     new_lines.append(line)
+    # f2 = open('/home/hexindong/DATASET/stidataset/LM120-170829-1743/label/result_mo.txt', 'w')
+    # for line in new_lines:
+    #     f2.write(line)
+    # f2.close()
+    # print 'Done !'
 
     # rospy.init_node('rostensorflow')
     # pub = rospy.Publisher('prediction', PointCloud, queue_size=1000)
@@ -898,29 +893,30 @@ if __name__ == '__main__':
     #     # mlab.show()
     #     idx += 1
     #     if idx > 42: idx = 0
-
-    if 1:
-        while True:
-            # import tensorflow as tf
-            # a = tf.constant(0,tf.float32,[1,2])
-            idx = input('Type a new index: ')
-            data_show('/home/hexindong/ws_dl/pyProj/CubicNet-server/data/training/', idx)
-
-            # for i in range(20):
-            #     filepath = "/home/hexindong/ws_dl/pyProj/MV3D_TF/data/KITTI_ORIGIN/object/training/"
-            #     filename=filepath+"velodyne/"+str(i).zfill(6) + ".bin"
-            #     print("Processing: ", filename)
-            #     scan = np.fromfile(filename, dtype=np.float32)
-            #     scan = scan.reshape((-1, 4))
-            #     front_view = point_cloud_to_panorama(scan)
-            #
-            #     #save
-            #     savepath=filepath+"lidar_fv/"+str(i).zfill(6) + ".npy"
-            #     np.save(savepath,front_view)
-            #
-            #     # filename = os.path.join(path, 'lidar_bv', str(index).zfill(6) + '.npy')
-            #     # bv = np.load(filename)
-            #     # image_fv = scale_to_255(front_view[:, :, 8], min=0, max=2)
-            #     # plt.subplot(312)
-            #     plt.imshow(front_view)
-            #     plt.show()
+    video_producer()
+    print 'done~'
+    # if 1:
+    #     while True:
+    #         # import tensorflow as tf
+    #         # a = tf.constant(0,tf.float32,[1,2])
+    #         idx = input('Type a new index: ')
+    #         data_show('/home/hexindong/ws_dl/pyProj/CubicNet-server/data/training/', idx)
+    #
+    #         # for i in range(20):
+    #         #     filepath = "/home/hexindong/ws_dl/pyProj/MV3D_TF/data/KITTI_ORIGIN/object/training/"
+    #         #     filename=filepath+"velodyne/"+str(i).zfill(6) + ".bin"
+    #         #     print("Processing: ", filename)
+    #         #     scan = np.fromfile(filename, dtype=np.float32)
+    #         #     scan = scan.reshape((-1, 4))
+    #         #     front_view = point_cloud_to_panorama(scan)
+    #         #
+    #         #     #save
+    #         #     savepath=filepath+"lidar_fv/"+str(i).zfill(6) + ".npy"
+    #         #     np.save(savepath,front_view)
+    #         #
+    #         #     # filename = os.path.join(path, 'lidar_bv', str(index).zfill(6) + '.npy')
+    #         #     # bv = np.load(filename)
+    #         #     # image_fv = scale_to_255(front_view[:, :, 8], min=0, max=2)
+    #         #     # plt.subplot(312)
+    #         #     plt.imshow(front_view)
+    #         #     plt.show()
