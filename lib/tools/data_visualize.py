@@ -164,17 +164,19 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
     vb = grid.add_view(row=0, col=0, row_span=2)
     vb_img = grid.add_view(row=1, col=0)
 
-    pos = scans[:, :3]
-    scatter = visuals.Markers()
-    scatter.set_gl_state('translucent', depth_test=False)
-    scatter.set_data(pos, edge_width=0, face_color=(1, 1, 1, 1), size=point_size, scaling=True)
+    if scans is not None:
+        pos = scans[:, :3]
+        scatter = visuals.Markers()
+        scatter.set_gl_state('translucent', depth_test=False)
+        scatter.set_data(pos, edge_width=0, face_color=(1, 1, 1, 1), size=point_size, scaling=True)
 
     vb.camera = 'turntable'
     vb.camera.elevation = 21.0
     vb.camera.center = (6.5, -0.5, 9.0)
     vb.camera.azimuth = -75.5
     vb.camera.scale_factor = 32.7
-    vb.add(scatter)
+    if scans is not None:
+        vb.add(scatter)
 
     axis = visuals.XYZAxis()
     vb.add(axis)
@@ -210,8 +212,8 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
                 mesh_border_box.set_vertices(vtcs)
                 mesh_box.set_vertices(vtcs)
                 vb.add(vsp_box)
-                if False:
-                    text = visuals.Text(text='gt: ({}/{})'.format(i, gt_cnt), color='white', face='OpenSans', font_size=12,
+                if True:
+                    text = visuals.Text(text='det: ({}/{})'.format(i, gt_cnt), color='white', face='OpenSans', font_size=12,
                                         pos=[box[0], box[1], box[2]],anchor_x='left', anchor_y='top', font_manager=None)
                     vb.add(text)
             elif len(box)!=9:

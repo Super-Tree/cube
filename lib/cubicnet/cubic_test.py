@@ -88,8 +88,8 @@ class CubicNet_Test(object):
                 if True:
                     # pcd_vispy(scan,img,no_gt=True,index=idx,
                     pcd_vispy(scan, img, pred_boxes, no_gt=True, index=idx,
-                              save_img=True,#cfg.TEST.SAVE_IMAGE,
-                              visible=False,
+                              save_img=False,#cfg.TEST.SAVE_IMAGE,
+                              visible=True,
                               name='CubicNet testing')
                 else:
                     pointcloud = PointCloud_Gen(scan)
