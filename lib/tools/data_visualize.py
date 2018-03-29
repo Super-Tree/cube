@@ -1,13 +1,17 @@
 import os
-import tensorflow as tf
-from tools.utils import scales_to_255
+
+import vispy.app
+v = vispy.app.Canvas()
+
 import cv2
+from tools.utils import scales_to_255
+import tensorflow as tf
 import numpy as np
-import vispy
 from network.config import cfg
 from vispy.scene import visuals
 import vispy.io as vispy_file
 from os.path import join as path_add
+
 
 vispy.set_log_level('CRITICAL', match='-.-')
 folder = path_add(cfg.TEST_RESULT, cfg.RANDOM_STR)
@@ -259,7 +263,7 @@ def pcd_show_now():
     vispy.app.quit()
 
 def vispy_init():
-    import vispy
+    import vispy.app
     # vispy.use('pyqt4')
     # vispy.app.use_app()
     v = vispy.app.Canvas()

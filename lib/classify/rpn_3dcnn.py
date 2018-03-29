@@ -23,7 +23,7 @@ def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes,method):
         points_mv_min = np.subtract(rpn_points,min_vertex)  # using fot coordinate
         points_mv_ctr = np.subtract(rpn_points,ctr_vertex)  # using as feature
         if method =='train' and cfg.TRAIN.USE_AUGMENT_IN_CUBIC_GEN:
-            angel = random.rand()*np.pi*2 #[ 0~360]
+            angel = random.rand()*np.pi*2 #[0~360]
             scalar = 1.2 - random.rand()*0.4
             translation = np.random.rand(3, 1) * 0.5
             points_mv_ctr_rot_nobound = rot_sca_pc(points_mv_ctr,angel,scalar,translation)
