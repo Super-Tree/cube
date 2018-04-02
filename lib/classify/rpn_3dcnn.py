@@ -97,8 +97,9 @@ class cubic(object):
         self.batch_size = batch_size
         with tf.variable_scope('conv3d_1', reuse=tf.AUTO_REUSE) as scope:
             self.conv3d_1 = tf.layers.Conv3D(filters=channel[0], kernel_size=[3, 3, 3], activation=tf.nn.relu,
-                                             strides=[2, 2, 2], padding="valid", _reuse=tf.AUTO_REUSE,
+                                             strides=[1, 1, 1], padding="valid", _reuse=tf.AUTO_REUSE,
                                              _scope=scope, trainable=training)
+            self.maxpool_1= tf.layers.MaxPooling3D(pool_size=[2,2,2],strides=[2,2,2],padding='same')
             self.bn_1 = tf.layers.BatchNormalization(fused=True, _reuse=tf.AUTO_REUSE, _scope=scope)
 
         with tf.variable_scope('conv3d_2', reuse=tf.AUTO_REUSE) as scope:
@@ -124,7 +125,8 @@ class cubic(object):
     def apply(self, inputs):
         conv3d_input = tf.reshape(inputs, np.concatenate((np.array([-1]), cubic_size)))
         out_conv3d_1 = self.conv3d_1.apply(conv3d_input)
-        out_bn_1=self.bn_1.apply(out_conv3d_1)
+        out_maxp = self.maxpool_1.apply(out_conv3d_1)
+        out_bn_1=self.bn_1.apply(out_maxp)
         out_conv3d_2 = self.conv3d_2.apply(out_bn_1)
         out_bn_2=self.bn_2.apply(out_conv3d_2)
         out_conv3d_3 = self.conv3d_3.apply(out_bn_2)

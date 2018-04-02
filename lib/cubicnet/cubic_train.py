@@ -98,6 +98,14 @@ class CubicNet_Train(object):
                 cubic_cross_entropy = tf.reduce_mean(
                     tf.nn.sparse_softmax_cross_entropy_with_logits(logits=cubic_cls_score, labels=cubic_cls_labels))
             else:
+                #### use as reference for pos&neg proposal balance
+                # self.cls_loss = alpha * (
+                #             -self.pos_equal_one * tf.log(self.p_pos + small_addon_for_BCE)) / self.pos_equal_one_sum \
+                #                 + beta * (-self.neg_equal_one * tf.log(
+                #     1 - self.p_pos + small_addon_for_BCE)) / self.neg_equal_one_sum
+                # self.cls_loss = tf.reduce_sum(self.cls_loss)
+                ####
+
                 # alpha = [0.75,0.25]  # 0.25 for label=1
                 gamma = 3
                 rpn_cls_probability = tf.nn.softmax(rpn_cls_score)
