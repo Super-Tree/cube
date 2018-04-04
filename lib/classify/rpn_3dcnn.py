@@ -2,30 +2,31 @@
 import numpy as np
 from numpy import random
 import tensorflow as tf
-from tools.data_visualize import pcd_vispy,pcd_show_now
+from tools.data_visualize import pcd_vispy,pcd_show_now,boxary2dic
 from network.config import cfg
 
 DEBUG = False
 
-shape = lambda i: int(np.ceil(np.round(cfg.ANCHOR[i] / cfg.CUBIC_RES[i], 3)))  # Be careful about python number  decimal
 #TODO: cubic feature define 2,4,or else?
-cubic_size = [shape(0), shape(1), shape(2), 2]
+cubic_size = [cfg.CUBIC_SIZE[0], cfg.CUBIC_SIZE[1], cfg.CUBIC_SIZE[2], 2]
 
 def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes,method):
+    # rpnBoxes:(x1,y1,z1),(x2,y2,z2),cls_label,yaw
     res = []
     display_stack=[]
     if DEBUG:
         pass
-        display_stack.append(pcd_vispy(lidarPoints, boxes=rpnBoxes,visible=False,multi_vis=True))
-
+        display_stack.append(pcd_vispy(lidarPoints, boxes=boxary2dic(rpnBoxes),visible=False,multi_vis=True))
+    rpn_new_yaw=[]
     for iidx,box in enumerate(rpnBoxes):
         rpn_points,min_vertex,ctr_vertex = bounding_filter(lidarPoints,box)
         points_mv_min = np.subtract(rpn_points,min_vertex)  # using fot coordinate
         points_mv_ctr = np.subtract(rpn_points,ctr_vertex)  # using as feature
         if method =='train' and cfg.TRAIN.USE_AUGMENT_IN_CUBIC_GEN:
-            angel = random.rand()*np.pi*2 #[0~360]
-            scalar = 1.2 - random.rand()*0.4
-            translation = np.random.rand(3, 1) * 0.5
+            angel = random.rand()*0.01 #*np.pi*2 #[0~360]
+            # angel = 0.7854 #counter clockwise rotation
+            scalar = 1.1 - random.rand()*0.2
+            translation = np.random.rand(3, 1) * 0.2
             points_mv_ctr_rot_nobound = rot_sca_pc(points_mv_ctr,angel,scalar,translation)
             points_mv_ctr_rot,min_p,ctr_p = bounding_filter(points_mv_ctr_rot_nobound, [0,0,0])
 
@@ -35,37 +36,37 @@ def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes,method):
             if not DEBUG:
                 feature = np.hstack((np.ones([len(points_mv_ctr_rot[:,3]),1]),points_mv_ctr_rot[:,3].reshape(-1,1))) #points_mv_ctr_rot
             else:
-                feature = np.hstack((x_cub.reshape(-1,1)-(shape(0)/2),y_cub.reshape(-1,1)-(shape(1)/2),z_cub.reshape(-1,1)-(shape(2)/2),points_mv_ctr_rot[:,3].reshape(-1,1))) #points_mv_ctr_rot
-
+                feature = np.hstack((x_cub.reshape(-1,1)-(cfg.CUBIC_SIZE[0]/2),y_cub.reshape(-1,1)-(cfg.CUBIC_SIZE[1]/2),z_cub.reshape(-1,1)-(cfg.CUBIC_SIZE[2]/2),points_mv_ctr_rot[:,3].reshape(-1,1))) #points_mv_ctr_rot
         else: # method: test
+            angel = 0.0
             x_cub = np.divide(points_mv_min[:, 0], cfg.CUBIC_RES[0]).astype(np.int32)
             y_cub = np.divide(points_mv_min[:, 1], cfg.CUBIC_RES[1]).astype(np.int32)
             z_cub = np.divide(points_mv_min[:, 2], cfg.CUBIC_RES[2]).astype(np.int32)
             feature = np.hstack((np.ones([len(points_mv_ctr[:,3]),1]),points_mv_ctr[:,3:]))
 
+        rpn_new_yaw.append(angel)# gt_yaw - rotation: because gt is clockwise and rotation is counter clockwise#TODO hxd:check
         cubic_feature = np.zeros(shape=cubic_size, dtype=np.float32)
-        cubic_feature[x_cub, y_cub, z_cub] =feature# TODO:select&add feature # points_mv_ctr  # using center coordinate system
+        cubic_feature[x_cub, y_cub, z_cub] = feature# TODO:select&add feature # points_mv_ctr  # using center coordinate system
         res.append(cubic_feature)
 
         if DEBUG:
-            box_mv = [box[0] - box[0], box[1] - box[1], box[2] - box[2],shape(0), shape(1),shape(2),1,1,1]
-            box_gt_mv = [box[0] - box[0], box[1] - box[1], box[2] - box[2], cfg.ANCHOR[0], cfg.ANCHOR[1], cfg.ANCHOR[2],1, 1, 1]
+            box_mv = [box[0] - box[0], box[1] - box[1], box[2] - box[2],cfg.CUBIC_SIZE[0], cfg.CUBIC_SIZE[1],cfg.CUBIC_SIZE[2],1,0,0]
+            box_gt_mv = [box[0] - box[0], box[1] - box[1], box[2] - box[2], cfg.ANCHOR[0], cfg.ANCHOR[1], cfg.ANCHOR[2],1, 0, 0]
 
-            display_stack.append(pcd_vispy(cubic_feature.reshape(-1, 4),name='grid_'+str(iidx), boxes=np.array(box_mv),visible=False,point_size =0.1,multi_vis=True))
-            display_stack.append(pcd_vispy(points_mv_ctr.reshape(-1, 4),name='origin_'+str(iidx), boxes=np.array(box_gt_mv),visible=False,point_size =0.1,multi_vis=True))
+            display_stack.append(pcd_vispy(cubic_feature.reshape(-1, 4),name='grid_'+str(iidx), boxes=boxary2dic(np.array(box_mv)),visible=False,point_size =0.1,multi_vis=True))
+            display_stack.append(pcd_vispy(points_mv_ctr.reshape(-1, 4),name='origin_'+str(iidx), boxes=boxary2dic(np.array(box_gt_mv)),visible=False,point_size =0.1,multi_vis=True))
         # break
     if DEBUG:
         pcd_show_now()
     stack_size = np.concatenate((np.array([-1]), cubic_size))
-    return np.array(res, dtype=np.float32).reshape(stack_size)
+    return np.array(res, dtype=np.float32).reshape(stack_size),np.array(rpn_new_yaw,dtype=np.float32)
 
 def rot_sca_pc(points, rotation,scalar,translation):
-    # points: numpy array;translation: moving scalar which should be small
+    # points: numpy array;  translation: moving scalar which should be small
     R = np.array([[np.cos(rotation), -np.sin(rotation), 0.],
                   [np.sin(rotation), np.cos(rotation), 0.],
                   [0, 0, 1]], dtype=np.float32)
     assert translation.shape ==(3,1), 'File rpn_3dcnn Function rot_sca_pc :T is  incompatible with transform'
-    # T = np.random.randn(3, 1) * translation
     points_rot = np.matmul(R, points[:, 0:3].transpose()) + translation
     points_rot_sca = points_rot*scalar
     return np.hstack((points_rot_sca.transpose(),points[:,3:]))
@@ -160,9 +161,8 @@ if __name__ == '__main__':
 
     dataset = dataset_KITTI_train(arg)
     DEBUG=True
-    cubic_size = [shape(0), shape(1), shape(2), 4]
+    cubic_size = [cfg.CUBIC_SIZE[0], cfg.CUBIC_SIZE[1], cfg.CUBIC_SIZE[2], 4]
     while True:
-
         idx = input('Type a new index: ')
         blobs = dataset.get_minibatch(idx)
         cubic_rpn_grid_pyfc(blobs['lidar3d_data'], blobs['gt_boxes_3d'],method='train')

@@ -16,7 +16,7 @@ from tools.data_visualize import pcd_vispy,vispy_init,pcd_vispy_client
 # from multiprocessing import Process,Queue
 # MSG_QUEUE = Queue(200)
 ##================================================
-DEBUG = True
+DEBUG = False
 class msg_qt(object):
     def __init__(self,scans=None, img=None,queue=None, boxes=None, name=None,
                  index=0, vis_size=(800, 600), save_img=False,visible=True, no_gt=False):
@@ -34,7 +34,6 @@ class msg_qt(object):
     def check(self):
         pass
 
-
 class CubicNet_Train(object):
     def __init__(self, network, data_set, args):
         self.saver = tf.train.Saver(max_to_keep=100)
@@ -45,17 +44,14 @@ class CubicNet_Train(object):
         self.epoch = self.dataset.training_rois_length
         self.val_epoch = self.dataset.validing_rois_length
 
-    def snapshot(self, sess, iter=None, final=False):
+    def snapshot(self, sess, iter=None):
         output_dir = os.path.join(cfg.ROOT_DIR, 'output', self.random_folder)
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-        if not final:
-            filename = os.path.join(output_dir, 'CubicNet_iter_{:d}'.format(iter) + '.ckpt')
-            self.saver.save(sess, filename)
-            print 'Wrote snapshot to: {:s}'.format(filename)
-        else:
-            filename = os.path.join(output_dir, 'CombiNet_iter_{:d}_final'.format(iter) + '.ckpt')
-            self.saver.save(sess, filename)
+
+        filename = os.path.join(output_dir, 'CubicNet_iter_{:d}'.format(iter) + '.ckpt')
+        self.saver.save(sess, filename)
+        print 'Wrote snapshot to: {:s}'.format(filename)
 
     @staticmethod
     def modified_smooth_l1(sigma, bbox_pred, bbox_targets):
@@ -79,103 +75,32 @@ class CubicNet_Train(object):
 
     def training(self, sess, train_writer):
         with tf.name_scope('loss_cubic'):
-            rpn_cls_score = tf.reshape(self.net.get_output('rpn_cls_score'), [-1, 2])
-            rpn_label = tf.reshape(self.net.get_output('rpn_anchors_label')[0], [-1])
-
-            rpn_keep = tf.where(tf.not_equal(rpn_label, -1))
-            rpn_bbox_keep = tf.where(tf.equal(rpn_label, 1))  # only regression positive anchors
-
-            rpn_cls_score = tf.reshape(tf.gather(rpn_cls_score, rpn_keep), [-1, 2])
-            rpn_label = tf.reshape(tf.gather(rpn_label, rpn_keep), [-1])
-
-            cubic_cls_score = tf.reshape(self.net.get_output('cubic_cnn'), [-1, 2])
-            cubic_cls_labels = tf.reshape(tf.cast(self.net.get_output('rpn_rois')[0][:, -1], tf.int64), [-1])
-
-            if not cfg.TRAIN.FOCAL_LOSS:
-                rpn_cross_entropy = tf.reduce_mean(
-                    tf.nn.sparse_softmax_cross_entropy_with_logits(logits=rpn_cls_score, labels=rpn_label))
-
-                cubic_cross_entropy = tf.reduce_mean(
-                    tf.nn.sparse_softmax_cross_entropy_with_logits(logits=cubic_cls_score, labels=cubic_cls_labels))
-            else:
-                #### use as reference for pos&neg proposal balance
-                # self.cls_loss = alpha * (
-                #             -self.pos_equal_one * tf.log(self.p_pos + small_addon_for_BCE)) / self.pos_equal_one_sum \
-                #                 + beta * (-self.neg_equal_one * tf.log(
-                #     1 - self.p_pos + small_addon_for_BCE)) / self.neg_equal_one_sum
-                # self.cls_loss = tf.reduce_sum(self.cls_loss)
-                ####
-
-                # alpha = [0.75,0.25]  # 0.25 for label=1
-                gamma = 3
-                rpn_cls_probability = tf.nn.softmax(rpn_cls_score)
-                cubic_cls_probability = tf.nn.softmax(cubic_cls_score)
-
-                # formula :  Focal Loss for Dense Object Detection: FL(p)= -((1-p)**gama)*log(p)
-                rpn_cross_entropy = tf.reduce_mean(-tf.reduce_sum(
-                    tf.one_hot(rpn_label, depth=2) * ((1 - rpn_cls_probability) ** gamma) * tf.log(
-                        [cfg.EPS, cfg.EPS] + rpn_cls_probability), axis=1))
-
-                cubic_cross_entropy = tf.reduce_mean(-tf.reduce_sum(
-                    tf.one_hot(cubic_cls_labels, depth=2) * ((1 - cubic_cls_probability) ** gamma) * tf.log(
-                        [cfg.EPS, cfg.EPS] + cubic_cls_probability), axis=1))
-
-            # bounding box regression L1 loss
-            rpn_bbox_pred = self.net.get_output('rpn_bbox_pred')
-            rpn_bbox_targets = self.net.get_output('rpn_anchors_label')[1]
-            rpn_bbox_pred = tf.reshape(tf.gather(tf.reshape(rpn_bbox_pred, [-1, 3]), rpn_bbox_keep), [-1, 3])
-            rpn_bbox_targets = tf.reshape(tf.gather(tf.reshape(rpn_bbox_targets, [-1, 3]), rpn_bbox_keep), [-1, 3])
-
-            rpn_smooth_l1 = self.modified_smooth_l1(3.0, rpn_bbox_pred, rpn_bbox_targets)
-            rpn_loss_box = tf.multiply(tf.reduce_mean(tf.reduce_sum(rpn_smooth_l1, reduction_indices=[1])), 1.0)
-
-            # loss = rpn_cross_entropy + rpn_loss_box + cubic_cross_entropy
-            loss = cubic_cross_entropy
+            RNet_rpn_yaw_pred = self.net.get_output('RNet_theta')[1]
+            RNet_rpn_yaw_gt_delta = self.net.get_output('cubic_grid')[1]
+            RNet_rpn_yaw_gt = self.net.get_output('rpn_rois')[1][:,-1]#rpn_3d_boxes:(x1,y1,z1),(x2,y2,z2),score,rpn_cls_label,yaw
+            RNet_rpn_yaw_gt_new = RNet_rpn_yaw_gt-RNet_rpn_yaw_gt_delta
+            RNet_rpn_yaw_pred_toshow = RNet_rpn_yaw_pred+RNet_rpn_yaw_gt_delta
+            rpn_cls_labels = self.net.get_output('rpn_rois')[1][:,-2]#rpn_3d_boxes:(x1,y1,z1),(x2,y2,z2),score,rpn_cls_label,yaw
+            tower_l1_loss = self.modified_smooth_l1(sigma=3, bbox_pred=RNet_rpn_yaw_pred, bbox_targets=RNet_rpn_yaw_gt_new)
+            tower_l1_loss_keep_positive = tf.multiply(rpn_cls_labels, tower_l1_loss)
+            loss = tf.reduce_sum(tower_l1_loss_keep_positive)/(1e-5+tf.reduce_sum(tf.cast(tf.not_equal(tower_l1_loss_keep_positive, 0.0), dtype=tf.float32)))
 
         with tf.name_scope('train_op'):
             global_step = tf.Variable(1, trainable=False, name='Global_Step')
             lr = tf.train.exponential_decay(cfg.TRAIN.LEARNING_RATE, global_step, 10000, 0.92, name='decay-Lr')
             train_op = tf.train.AdamOptimizer(lr).minimize(loss, global_step=global_step)
 
-        with tf.name_scope('train_cubic'):
+        with tf.name_scope('debug_tb'):
             tf.summary.scalar('total_loss', loss)
-            # tf.summary.scalar('rpn_loss_box', rpn_loss_box)
-            # tf.summary.scalar('rpn_cross_entropy', rpn_cross_entropy)
-            # tf.summary.scalar('cubic_cross_entropy', cubic_cross_entropy)
-            recall_RPN = 0.
-            # bv_anchors = self.net.get_output('rpn_anchors_label')[2]
-            # roi_bv = self.net.get_output('rpn_rois')[0] # (x1,y1),(x2,y2),score,label
-            # data_bv = self.net.lidar_bv_data
-            # data_gt = self.net.gt_boxes_bv # (x1,y1),(x2,y2),label
-            # # gt_box = tf.concat([data_gt,data_gt[:, 4]], axis=1)
-            # bbox = tf.concat([roi_bv,data_gt],axis=0)
-            # image_rpn = tf.reshape(show_rpn_tf(data_bv, bbox), (1, 601, 601, -1))
-            # tf.summary.image('lidar_bv_test', image_rpn)
-            glb_var = tf.global_variables()
+            glb_var = tf.trainable_variables()
             for i in range(len(glb_var)):
-                # print glb_var[i].name
-                if 'moving' not in str(glb_var[i].name):
-                    if 'Adam' not in str(glb_var[i].name):
-                        if 'weights' not in str(glb_var[i].name):
-                            if 'rpn' not in str(glb_var[i].name):
-                                if 'biases' not in str(glb_var[i].name):
-                                    if 'beta'not in str(glb_var[i].name):
-                                        if 'gamma' not in str(glb_var[i].name):
-                                            if 'batch' not in str(glb_var[i].name):
-                                                    tf.summary.histogram(glb_var[i].name, glb_var[i])
-            merged = tf.summary.merge_all()
-
-        with tf.name_scope('valid_cubic'):
-            epoch_rpn_recall = tf.placeholder(dtype=tf.float32)
-            rpn_recall_smy_op = tf.summary.scalar('rpn_recall', epoch_rpn_recall)
-            epoch_cubic_recall = tf.placeholder(dtype=tf.float32)
-            cubic_recall_smy_op = tf.summary.scalar('cubic_recall', epoch_cubic_recall)
-            epoch_cubic_precise = tf.placeholder(dtype=tf.float32)
-            cubic_prec_smy_op = tf.summary.scalar('cubic_precise', epoch_cubic_precise)
+                tf.summary.histogram(glb_var[i].name, glb_var[i])
+            tf.summary.image('theta', self.net.get_output('RNet_theta')[0],max_outputs=50)
+            merged = tf.summary.merge_all() #hxd: before the next summary ops
 
         sess.run(tf.global_variables_initializer())
         if self.args.fine_tune:
-            if True:
+            if False:
                 # #full graph restore
                 print 'Loading pre-trained model weights from {:s}'.format(self.args.weights)
                 self.net.load(self.args.weights, sess, self.saver, True)
@@ -199,15 +124,11 @@ class CubicNet_Train(object):
         print 'Variables to train: ',trainable_var_for_chk
 
         timer = Timer()
-        rpn_rois = self.net.get_output('rpn_rois')
-        cubic_grid = self.net.get_output('cubic_grid')
-        cubic_cnn= self.net.get_output('cubic_cnn')
+        rpn_rois_3d = self.net.get_output('rpn_rois')[1]
+
         if DEBUG:
-            vispy_init()  # TODO: Essential step(before sess.run) for using vispy beacuse of the bug of opengl or tensorflow
-            # station = pcd_vispy_client(MSG_QUEUE,title='Vision')
-            # vision_qt = Process(target=station.get_thread_data, args=(MSG_QUEUE,))
-            # vision_qt.start()
-            # print 'Process vision_qt started ...'
+            pass # TODO: Essential step(before sess.run) for using vispy beacuse of the bug of opengl or tensorflow
+            vispy_init()
 
         training_series = range(self.epoch)  # self.epoch
         for epo_cnt in range(self.args.epoch_iters):
@@ -222,28 +143,24 @@ class CubicNet_Train(object):
                     self.net.gt_boxes_bv: blobs['gt_boxes_bv'],
                     self.net.gt_boxes_3d: blobs['gt_boxes_3d'],
                     self.net.gt_boxes_corners: blobs['gt_boxes_corners'],
-                    self.net.calib: blobs['calib']}
+                    self.net.calib: blobs['calib'],
+                }
+
                 run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 run_metadata = tf.RunMetadata()
-
                 timer.tic()
-                cubic_cls_score_,cubic_cls_labels_,rpn_rois_,cubic_cnn_,cubic_grid_, loss_, merged_, _ = sess.run(
-                    [cubic_cls_score,cubic_cls_labels,rpn_rois,cubic_cnn,cubic_grid,loss, merged, train_op],
-                    feed_dict=feed_dict,options=run_options, run_metadata=run_metadata)
+                delta_,RNet_rpn_yaw_gt_delta_,rpn_rois_3d_,loss_,RNet_rpn_yaw_pred_toshow_,RNet_rpn_yaw_gt_,merged_,_ = \
+                    sess.run([tower_l1_loss_keep_positive,RNet_rpn_yaw_gt_delta,rpn_rois_3d,loss,RNet_rpn_yaw_pred_toshow,RNet_rpn_yaw_gt,merged,train_op,]
+                             ,feed_dict=feed_dict,options=run_options, run_metadata=run_metadata)
                 timer.toc()
 
-                recall_RPN = recall_RPN + rpn_rois_[2][0]
-                cubic_result = cubic_cls_score_.argmax(axis=1)
-                one_hist = fast_hist(cubic_cls_labels_, cubic_result)
-                cubic_car_cls_prec = one_hist[1, 1] / (one_hist[1, 1] + one_hist[0, 1]+1e-5)
-                cubic_car_cls_recall = one_hist[1, 1] / (one_hist[1, 1] + one_hist[1, 0]+1e-5)
-
                 if iter % cfg.TRAIN.ITER_DISPLAY == 0:
-                    print 'Iter: %d/%d, Serial_num: %s, speed: %.3fs/iter, loss: %.3f, rpn_recall: %.3f, cubic classify precise: %.3f,recall: %.3f' % \
-                          (iter,self.args.epoch_iters * self.epoch, blobs['serial_num'],timer.average_time,loss_,recall_RPN / cfg.TRAIN.ITER_DISPLAY,cubic_car_cls_prec,cubic_car_cls_recall)
-                    recall_RPN = 0.
-                    print 'divine: ', str(cubic_result).translate(None,'\n')
-                    print 'labels: ', str(cubic_cls_labels_).translate(None,'\n'),'\n'
+                    print 'Iter: %d/%d, Serial_num: %s, speed: %.3fs/iter, loss: %.3f '%(iter,self.args.epoch_iters * self.epoch, blobs['serial_num'],timer.average_time,loss_)
+                    print 'theta_delta: ',
+                    for i in range(50):
+                        if delta_[i]!=0.0:
+                            print '%5.3f' % (delta_[i]),
+                    print '\n'
                 if iter % 20 == 0 and cfg.TRAIN.TENSORBOARD:
                     train_writer.add_summary(merged_, iter)
                     pass
@@ -255,17 +172,13 @@ class CubicNet_Train(object):
                     trace_file.close()
                 if DEBUG:
                     scan = blobs['lidar3d_data']
-                    gt_box3d = blobs['gt_boxes_3d'][:, (0, 1, 2, 3, 4, 5, 6)]
-                    gt_box3d = np.hstack((gt_box3d,np.ones([gt_box3d.shape[0],2])*4))
-                    pred_boxes = np.hstack((rpn_rois_[1],cubic_result.reshape(-1,1)*2))
-                    bbox = np.vstack((pred_boxes, gt_box3d))
-                    # msg = msg_qt(scans=scan, boxes=bbox,name='CubicNet training')
-                    # MSG_QUEUE.put(msg)
-                    pcd_vispy(scan, boxes=bbox,name='CubicNet training')
+                    cubic_cls_value = np.ones([cfg.TRAIN.RPN_POST_NMS_TOP_N],dtype=np.float32)*0
+                    boxes = boxary2dic(gt_box3d=blobs['gt_boxes_3d'], pre_box3d=rpn_rois_3d_,pre_theta_value=RNet_rpn_yaw_pred_toshow_,pre_cube_cls=cubic_cls_value)# RNet_rpn_yaw_pred_toshow_
+                    pcd_vispy(scan, boxes=boxes,name='CubicNet training')
             if cfg.TRAIN.EPOCH_MODEL_SAVE:
                 self.snapshot(sess, iter)
                 pass
-            if cfg.TRAIN.USE_VALID:
+            if cfg.TRAIN.USE_VALID:#TODO: to complete the valid process
                 with tf.name_scope('valid_cubic_' + str(epo_cnt + 1)):
                     print 'Valid the net at the end of epoch_{} ...'.format(epo_cnt + 1)
                     # roi_bv = self.net.get_output('rpn_rois')[0]
@@ -325,6 +238,30 @@ class CubicNet_Train(object):
                       .format(epo_cnt + 1,recall_rpn,precise_total,recall_total)
             random.shuffle(training_series)  # shuffle the training series
         print 'Training process has done, enjoy every day !'
+
+def boxary2dic(gt_box3d=None,pre_box3d=None,pre_theta_value=None,pre_cube_cls=None):
+    # gt_box3d: (x1,y1,z1),(x2,y2,z2),dt_cls,yaw
+    # pre_box3d: (x1,y1,z1),(x2,y2,z2),score,rpn_cls_label
+    # cubic_theta_value:pre_box3d's yaw value
+    boxes=dict({})
+    if gt_box3d is None:
+        gt_box3d=np.zeros([1,8],dtype=np.float32)
+    if pre_box3d is None:
+        pre_box3d=np.zeros([cfg.TRAIN.RPN_POST_NMS_TOP_N,8],dtype=np.float32)
+    if pre_theta_value is None:
+        pre_theta_value=np.ones([cfg.TRAIN.RPN_POST_NMS_TOP_N,1],dtype=np.float32)*(-1.57)
+    if pre_cube_cls is None:
+        pre_cube_cls = np.zeros([cfg.TRAIN.RPN_POST_NMS_TOP_N, 1], dtype=np.float32)
+
+    boxes["center"]= np.vstack((gt_box3d[:,0:3],pre_box3d[:,0:3]))
+    boxes["size"]  = np.vstack((gt_box3d[:,3:6], pre_box3d[:,3:6]))
+    boxes["score"]  = np.vstack((gt_box3d[:, 6:7], pre_box3d[:, 6:7]))
+    boxes["cls_rpn"]  = np.vstack((gt_box3d[:, 6:7]*4, pre_box3d[:, 7:8]))#two cls flag  to save more information
+    boxes["cls_cube"]  = np.vstack((gt_box3d[:, 6:7]*4, np.reshape(pre_cube_cls,[-1,1])))#todo add cubic cls
+    boxes["yaw"]   = np.vstack((gt_box3d[:, 7:8], np.reshape(pre_theta_value,[-1,1])))#pre_box3d[:, 8:9]
+
+    return boxes
+
 
 def network_training(network, data_set, args):
     net = CubicNet_Train(network, data_set, args)

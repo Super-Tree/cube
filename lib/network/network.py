@@ -354,9 +354,9 @@ class Network(object):
         with tf.variable_scope(name,reuse=tf.AUTO_REUSE) as scope:
             rpn_rois_bv, rpn_rois_3d,rpn_recall = tf.py_func(proposal_layer_py_3d,
                                                   [input[0], input[1], input[2], input[3], cfg_key, _feat_stride],
-                                                  [tf.float32, tf.float32, tf.float32])
-            rpn_rois_bv = tf.reshape(rpn_rois_bv, [-1, 6], name='rpn_rois_bv') # (x1,y1),(x2,y2),score,label
-            rpn_rois_3d = tf.reshape(rpn_rois_3d, [-1, 8], name='rpn_rois_3d')
+                                                  [tf.float32, tf.float32,tf.float32])
+            rpn_rois_bv = tf.reshape(rpn_rois_bv, [-1, 7], name='rpn_rois_bv') # (x1,y1),(x2,y2),score,label,yaw
+            rpn_rois_3d = tf.reshape(rpn_rois_3d, [-1, 9], name='rpn_rois_3d') # (x1,y1,z1),(x2,y2,z2),score,rpn_cls_label,yaw
         return rpn_rois_bv, rpn_rois_3d, rpn_recall
 
     @layer
@@ -383,8 +383,25 @@ class Network(object):
         lidar_points = input[0]
         rpn_3d_boxes = input[1][1]
         with tf.variable_scope(name, reuse=tf.AUTO_REUSE) as scope:
-            stack_cubic = tf.py_func(cubic_rpn_grid_pyfc, [lidar_points, rpn_3d_boxes,method], tf.float32)
-        return stack_cubic
+            stack_cubic,rpn_yaw_delta= tf.py_func(cubic_rpn_grid_pyfc, [lidar_points, rpn_3d_boxes,method], [tf.float32,tf.float32])
+        return stack_cubic,rpn_yaw_delta
+    @layer
+    def RNet_theta(self, input,name):
+        input = input[0]# input has two elements,stack_cubic,rpn_new_yaw
+        with tf.variable_scope("cubic_theta", reuse=tf.AUTO_REUSE) as scope:
+            #T:[B,30,30,15,2] ->[B,30,30]
+            bi_bv = tf.reduce_max(input[:,:,:,:,0],axis=3,keep_dims=True)
+            layer = tf.reshape(bi_bv,[cfg.TRAIN.RPN_POST_NMS_TOP_N,30,30,1])
+            layer = tf.layers.conv2d(layer,filters=32,kernel_size=3,strides=[1, 1],activation=tf.nn.relu,name=None)
+            layer = tf.layers.max_pooling2d(layer,[2,2],[2,2])
+            layer = tf.layers.conv2d(layer,filters=64,kernel_size=3,strides=[2, 2],activation=tf.nn.relu,name=None)
+            layer = tf.layers.average_pooling2d(layer,[6,6],[6,6])
+            layer = tf.reshape(layer,[cfg.TRAIN.RPN_POST_NMS_TOP_N,-1])
+            layer = tf.layers.dense(layer,1,use_bias=True)
+            layer = tf.reshape(layer,[-1])
+            # layer = tf.layers.conv2d(layer,filters=32,kernel_size=3,strides=[1, 1],activation=tf.nn.relu,name=None)
+
+        return bi_bv,layer
 
     @layer
     def cubic_cnn(self,input, name):

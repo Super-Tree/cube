@@ -17,19 +17,36 @@ vispy.set_log_level('CRITICAL', match='-.-')
 folder = path_add(cfg.TEST_RESULT, cfg.RANDOM_STR)
 os.makedirs(folder)
 #  common functions  ===========================
-def box3d_2conner(box):
-    #box : score,x,y,z,l,w,h,type1,type2
-    p0 = np.array([box[0] - float(box[3]) / 2.0, box[1] - float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, ])
-    p1 = np.array([box[0] - float(box[3]) / 2.0, box[1] + float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, ])
-    p2 = np.array([box[0] + float(box[3]) / 2.0, box[1] + float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, ])
-    p3 = np.array([box[0] + float(box[3]) / 2.0, box[1] - float(box[4]) / 2.0, box[2] - float(box[5]) / 2.0, ])
+def box3d_2conner(box,rot):
+    #box : x,y,z,l,w,h,rot
+    vertices = np.zeros([8,3],dtype=np.float32)
+    vertices[0] = np.array([0 - float(box[3]) / 2.0, 0 - float(box[4]) / 2.0, 0 - float(box[5]) / 2.0, ])
+    vertices[1] = np.array([0 - float(box[3]) / 2.0, 0 + float(box[4]) / 2.0, 0 - float(box[5]) / 2.0, ])
+    vertices[2] = np.array([0 + float(box[3]) / 2.0, 0 + float(box[4]) / 2.0, 0 - float(box[5]) / 2.0, ])
+    vertices[3] = np.array([0 + float(box[3]) / 2.0, 0 - float(box[4]) / 2.0, 0 - float(box[5]) / 2.0, ])
 
-    p4 = np.array([box[0] - float(box[3]) / 2.0, box[1] - float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, ])
-    p5 = np.array([box[0] - float(box[3]) / 2.0, box[1] + float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, ])
-    p6 = np.array([box[0] + float(box[3]) / 2.0, box[1] + float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, ])
-    p7 = np.array([box[0] + float(box[3]) / 2.0, box[1] - float(box[4]) / 2.0, box[2] + float(box[5]) / 2.0, ])
+    vertices[4] = np.array([0 - float(box[3]) / 2.0, 0 - float(box[4]) / 2.0, 0 + float(box[5]) / 2.0, ])
+    vertices[5] = np.array([0 - float(box[3]) / 2.0, 0 + float(box[4]) / 2.0, 0 + float(box[5]) / 2.0, ])
+    vertices[6] = np.array([0 + float(box[3]) / 2.0, 0 + float(box[4]) / 2.0, 0 + float(box[5]) / 2.0, ])
+    vertices[7] = np.array([0 + float(box[3]) / 2.0, 0 - float(box[4]) / 2.0, 0 + float(box[5]) / 2.0, ])
 
-    return p0,p1,p2,p3,p4,p5,p6,p7
+    vertices = box_rot_trans(vertices, rot, [box[0],box[1],box[2]])
+
+    return vertices[0],vertices[1],vertices[2],vertices[3],vertices[4],vertices[5],vertices[6],vertices[7],
+def boxary2dic(gt_box3d):
+    # gt_box3d: (x1,y1,z1),(x2,y2,z2),cls,yaw
+    boxes=dict({})
+    if len(gt_box3d.shape)==1:
+        gt_box3d=gt_box3d.reshape(-1,gt_box3d.shape[0])
+    boxes["center"]= gt_box3d[:,0:3]
+    boxes["size"]  = gt_box3d[:,3:6]
+    boxes["score"]  = np.ones([gt_box3d.shape[0],1],dtype=np.float32)
+    boxes["cls_rpn"]  = np.ones([gt_box3d.shape[0],1],dtype=np.float32)*4
+    boxes["cls_cube"]  = np.ones([gt_box3d.shape[0],1],dtype=np.float32)*4
+    boxes["yaw"]   = gt_box3d[:,7:8]
+
+    return boxes
+
 #  using vispy ============================
 class pcd_vispy_client(object):# TODO: qt-client TO BE RE-WRITE
     def __init__(self,QUEUE,scans=None,title=None, keys='interactive', size=(800,600)):
@@ -196,49 +213,39 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
     vb_img.add(image)
 
     if boxes is not None:
-        if len(boxes.shape) ==1:
-            boxes = boxes.reshape(1,-1)
-        gt_indice = np.where(boxes[:, -1] == 4)[0]
+        gt_indice = np.where(boxes["cls_rpn"] == 4)[0]
         gt_cnt = len(gt_indice)
-        i = 0
-        for k,box in enumerate(boxes):
-            radio = max(box[6] - 0.5, 0.005)*2.0
+        boxes_cnt = boxes["center"].shape[0]
+        i=0
+        for k in range(boxes_cnt):
+            radio = max(boxes["score"][k] - 0.5, 0.005)*2.0
             color = (0, radio, 0, 1)  # Green
-
-            if box[-1] == 4:  #  gt boxes
+            if boxes["cls_rpn"][k] == 4:  #  gt boxes
                 i = i + 1
-                vsp_box = visuals.Box(width=box[3],  depth=box[4],height=box[5], color=(0.3, 0.4, 0.0, 0.06),edge_color='pink')
+                vsp_box = visuals.Box(depth=boxes["size"][k][0],width=boxes["size"][k][1],  height=boxes["size"][k][2], color=(0.3, 0.4, 0.0, 0.06),edge_color='pink')
                 mesh_box = vsp_box.mesh.mesh_data
                 mesh_border_box = vsp_box.border.mesh_data
                 vertices = mesh_box.get_vertices()
-                center = np.array([box[0], box[1], box[2]], dtype=np.float32)
-                vtcs = np.add(vertices, center)
-                mesh_border_box.set_vertices(vtcs)
-                mesh_box.set_vertices(vtcs)
+                center = np.array([boxes["center"][k][0], boxes["center"][k][1],boxes["center"][k][2]], dtype=np.float32)
+                vertices_roa_trans = box_rot_trans(vertices, -boxes["yaw"][k][0], center)#
+                mesh_border_box.set_vertices(vertices_roa_trans)
+                mesh_box.set_vertices(vertices_roa_trans)
                 vb.add(vsp_box)
                 if True:
                     text = visuals.Text(text='det: ({}/{})'.format(i, gt_cnt), color='white', face='OpenSans', font_size=12,
-                                        pos=[box[0], box[1], box[2]],anchor_x='left', anchor_y='top', font_manager=None)
+                                        pos=[boxes["center"][k][0], boxes["center"][k][1], boxes["center"][k][2]],anchor_x='left', anchor_y='top', font_manager=None)
                     vb.add(text)
-            elif len(box)!=9:
-                if box[-1] == 1:
-                    vb.add(line_box(box, color='yellow'))
-                else:
-                    vb.add(line_box(box, color='pink'))
-            elif (box[-1]+box[-2]) == 0: # True negative cls rpn divided by cube
-                vb.add(line_box(box,color=color))
-            elif (box[-1]+box[-2]) == 1: # False negative cls rpn divided by cube
-                if no_gt:
-                    pass
-                    vb.add(line_box(box, color='yellow'))
-                else:
-                    vb.add(line_box(box,color='red'))
-            elif (box[-1]+box[-2]) == 2: # False positive cls rpn divided by cube
-                    vb.add(line_box(box, color='blue'))
-            elif (box[-1]+box[-2]) == 3: # True positive cls rpn divided by cube
-                vb.add(line_box(box,color='yellow'))
+            elif (boxes["cls_rpn"][k]+boxes["cls_cube"][k]) == 0: # True negative cls rpn divided by cube
+                vb.add(line_box(boxes["center"][k],boxes["size"][k],-boxes["yaw"][k],color=color))
+            elif (boxes["cls_rpn"][k]+boxes["cls_cube"][k]) == 1: # False negative cls rpn divided by cube
+                vb.add(line_box(boxes["center"][k],boxes["size"][k],-boxes["yaw"][k],color="red"))
+            elif (boxes["cls_rpn"][k]+boxes["cls_cube"][k]) == 2: # False positive cls rpn divided by cube
+                vb.add(line_box(boxes["center"][k],boxes["size"][k],-boxes["yaw"][k],color="blue"))
+            elif (boxes["cls_rpn"][k]+boxes["cls_cube"][k]) == 3: # True positive cls rpn divided by cube
+                vb.add(line_box(boxes["center"][k],boxes["size"][k],-boxes["yaw"][k],color="yellow"))
             text = visuals.Text(text=str(k), color=color, face='OpenSans', font_size=12,
-                                pos=[box[0]-box[3]/2, box[1]-box[4]/2, box[2]-box[5]/2], anchor_x='left', anchor_y='top', font_manager=None)
+                                pos=[boxes["center"][k][0]-boxes["size"][k][0]/2, boxes["center"][k][1]-boxes["size"][k][1]/2, boxes["center"][k][2]-boxes["size"][k][2]/2], anchor_x='left', anchor_y='top', font_manager=None)
+
             vb.add(text)
 
     if save_img:
@@ -257,6 +264,15 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
         vispy.app.run()
 
     return canvas
+def box_rot_trans(vertices, rotation,translation):
+    # points: numpy array;translation: moving scalar which should be small
+    R = np.array([[np.cos(rotation), -np.sin(rotation), 0.],
+                  [np.sin(rotation), np.cos(rotation), 0.],
+                  [0, 0, 1]], dtype=np.float32)
+    translation = np.reshape(translation,[3,1])
+    points_rot = np.add(np.matmul(R, vertices.transpose()),translation)
+
+    return points_rot.transpose()
 
 def pcd_show_now():
     vispy.app.run()
@@ -268,8 +284,10 @@ def vispy_init():
     # vispy.app.use_app()
     v = vispy.app.Canvas()
 
-def line_box(box,color=(0, 1, 0, 0.1)):
-    p0, p1, p2, p3, p4, p5, p6, p7=box3d_2conner(box)
+
+def line_box(box_center,box_size,rot,color=(0, 1, 0, 0.1)):
+    box = np.array([box_center[0],box_center[1],box_center[2],box_size[1],box_size[0],box_size[2]],dtype=np.float32)
+    p0, p1, p2, p3, p4, p5, p6, p7=box3d_2conner(box,rot)
     pos = np.vstack((p0,p1,p2,p3,p0,p4,p5,p6,p7,p4,p5,p1,p2,p6,p7,p3))
     lines = visuals.Line(pos=pos, connect='strip', width=1, color=color, antialias=True,method='gl')
 

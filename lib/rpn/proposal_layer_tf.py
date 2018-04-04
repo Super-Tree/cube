@@ -69,6 +69,7 @@ def proposal_layer_3d(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, gt_bv, cfg_k
     # return the top proposals (-> RoIs top, scores top)
 
     # layer_params = yaml.load(self.param_str_)
+
     beg = datetime.datetime.now()
     _anchors = generate_anchors_bv()
     _num_anchors = _anchors.shape[0]
@@ -150,6 +151,7 @@ def proposal_layer_3d(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, gt_bv, cfg_k
         print "proposals_bv shape: ", proposals_bv.shape
         print "proposals_3d shape: ", proposals_3d.shape
         print "scores shape: ", scores.shape
+
     # # 2. clip predicted boxes to image
     # proposals_bv = clip_boxes(proposals_bv, im_info[:2])
 
@@ -204,16 +206,14 @@ def proposal_layer_3d(rpn_cls_prob_reshape, rpn_bbox_pred, im_info, gt_bv, cfg_k
         print "proposals after nms"
         print "proposals_bv shape: ", proposals_bv.shape
         print "proposals_3d shape: ", proposals_3d.shape
-
     # Output rois blob
     # Our RPN implementation only supports a single input image, so all
     # batch inds are 0
     length = proposals_bv.shape[0]
-    box_labels,recall= valid_pred(proposals_bv,gt_bv,length,cfg.TRAIN.RPN_POSITIVE_OVERLAP)
-    blob_bv = np.hstack((proposals_bv.astype(np.float32, copy=False),scores, box_labels.reshape(length,-1)))
-    blob_3d = np.hstack((proposals_3d.astype(np.float32, copy=False),scores, box_labels.reshape(length,-1)))
+    box_labels,thetas,recall= valid_pred(proposals_bv,gt_bv,length,cfg.TRAIN.RPN_POSITIVE_OVERLAP)
+    blob_bv = np.hstack((proposals_bv.astype(np.float32, copy=False),scores, box_labels.reshape(length,-1),thetas.reshape(length,-1)))
+    blob_3d = np.hstack((proposals_3d.astype(np.float32, copy=False),scores, box_labels.reshape(length,-1),thetas.reshape(length,-1)))
     end2 = datetime.datetime.now()
-
     if DEBUG:
         print 'NMS & bbox use time:', end2 - beg
 
@@ -352,21 +352,25 @@ def _filter_img_boxes(boxes, im_info):
                     (boxes[:, 3] <= h_max))[0]
     return keep
 
-def valid_pred(perd_bv,gt_bv,length,thres):
-    gt_bv = gt_bv[:,0:4]
+def valid_pred(perd_bv,gt_bv_all,length,thres):
+    gt_bv = gt_bv_all[:,0:4]
     overlaps = bbox_overlaps(
         np.ascontiguousarray(perd_bv, dtype=np.float),
         np.ascontiguousarray(gt_bv, dtype=np.float))
     max_overlaps = overlaps.max(axis=1)
     positive = np.where(max_overlaps[:]>thres)
+
     labels = np.zeros(length,dtype=np.float32)
     labels[positive] = 1
+
+    max_pos = overlaps.argmax(axis=1)
+    thetas = np.array([gt_bv_all[i,5] for i in max_pos])
 
     max = overlaps.max(axis=0)
     cnt = np.where(max[:]>thres)[0]
     recall = np.array([float(len(cnt))/len(gt_bv),len(cnt),len(gt_bv)],dtype=np.float32)
 
-    return labels,recall
+    return labels,thetas,recall
 
 def bbox_overlaps(boxes, query_boxes):
     N = boxes.shape[0]

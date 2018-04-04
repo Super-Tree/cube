@@ -4,6 +4,10 @@ PYTHONUNBUFFERED=1;
 LD_LIBRARY_PATH=/usr/local/cuda/lib64
 CUDA_VISIBLE_DEVICES = 0
 """
+
+"""
+NOTICE: 1.kitti data rotation orientation is clockwise ,contrasting with vispy's counter clockwise 
+"""
 import _init_paths
 import argparse
 import sys
@@ -93,8 +97,9 @@ def get_network(arguments):
             return test_net(arguments,trainable=False)
         else:
             return test_net_sti(arguments)
-        # print "Loading model from .meta ...."
-        # return None # hxd: when testting,we needn't to reload the model,using .meta file to restore the graph
+            # print "Loading model from .meta ...."
+            # return None
+            # hxd: when testing,if we use the same graph,we needn't to reload the model,using .meta file to restore the graph
 
 
 if __name__ == '__main__':

@@ -14,7 +14,7 @@ class train_net(Network):
         self.lidar_bv_data = tf.placeholder(tf.float32, shape=[None, 601, 601, 9])
         self.im_info = tf.placeholder(tf.float32, shape=[None, 3])
         self.gt_boxes_bv = tf.placeholder(tf.float32, shape=[None, 6])
-        self.gt_boxes_3d = tf.placeholder(tf.float32, shape=[None, 7])
+        self.gt_boxes_3d = tf.placeholder(tf.float32, shape=[None, 8])
         self.gt_boxes_corners = tf.placeholder(tf.float32, shape=[None, 25])
         self.calib = tf.placeholder(tf.float32, shape=[None, 12])
         self.keep_prob = tf.placeholder(tf.float32)
@@ -74,6 +74,9 @@ class train_net(Network):
 
         (self.feed('lidar3d_data','rpn_rois')
          .cubic_grid(method=args.method,name='cubic_grid')
-         .cubic_cnn(name='cubic_cnn')
+         .RNet_theta(name='RNet_theta')
          )
+        # (self.feed('cubic_grid')
+        #  .cubic_cnn(name='cubic_cnn')
+        # )
 

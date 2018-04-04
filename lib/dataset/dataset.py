@@ -435,12 +435,21 @@ class dataset_KITTI_train(object):  # read txt files one by one
         gt_boxes_bv = np.empty((len(gt_inds), 6), dtype=np.float32)
         gt_boxes_bv[:, 0:4] = dataset[idx]['boxes_bv'][gt_inds, :]
         gt_boxes_bv[:, 4] = dataset[idx]['gt_classes'][gt_inds]
-        gt_boxes_bv[:, 5] = dataset[idx]['gt_classes'][gt_inds]
+        gt_boxes_bv[:, 5] = dataset[idx]['ry'][gt_inds]
 
         # gt boxes 3d: (x, y, z, l, w, h, cls)
-        gt_boxes_3d = np.empty((len(gt_inds), 7), dtype=np.float32)
+        gt_boxes_3d = np.empty((len(gt_inds), 8), dtype=np.float32)
         gt_boxes_3d[:, 0:6] = dataset[idx]['boxes_3D'][gt_inds, :]
         gt_boxes_3d[:, 6] = dataset[idx]['gt_classes'][gt_inds]
+
+        gt_boxes_3d[:, 7]= dataset[idx]['ry'][gt_inds]
+        # out_1 = np.where(thetas)
+        # if thetas<(-1.5708)
+        #     thetas+=3.1415926
+        # elif thetas>1.5708
+        #     thetas = 3.1415926-thetas
+        # gt_boxes_3d[:, 7]=thetas
+
 
         # gt boxes corners: (x0, ... x7, y0, y1, ... y7, z0, ... z7, cls)
         gt_boxes_corners = np.empty((len(gt_inds), 25), dtype=np.float32)
