@@ -4,8 +4,10 @@ import struct
 import copy
 import numpy as np
 import warnings
-from tools.data_visualize import pcd_vispy, vispy_init
-vispy_init() # must before 'import lzf'
+import socket
+if socket.gethostname()=="hexindong":
+    from tools.data_visualize import pcd_vispy, vispy_init
+    vispy_init() # must before 'import lzf'
 import lzf
 
 HAS_SENSOR_MSGS = True

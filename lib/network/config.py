@@ -6,6 +6,7 @@ import random
 import string
 import os
 import numpy as np
+import socket
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '0'  # or any {'0':log, '1':info, '2':warning ,'3':Error}
 __C = edict()
 
@@ -16,12 +17,18 @@ __C.GPU_AVAILABLE = '3,1,2,0'
 __C.NUM_CLASS = 2
 __C.DEFAULT_PADDING = 'SAME'
 __C.ROOT_DIR = osp.abspath(osp.join(osp.dirname(__file__), '..', '..'))
-__C.DATA_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'data'))
+
+if socket.gethostname()=="hexindong":
+    # __C.DATA_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'data_local'))
+     __C.DATA_DIR ="/home/hexindong/DATASET/kittidataset/KITTI/object"
+else:
+    __C.DATA_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'data_server'))
+
 __C.OUTPUT_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'output'))
 __C.LOG_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'log'))
 __C.LOCAL_LOG_DIR = osp.abspath(osp.join(__C.ROOT_DIR, 'local_log'))
 __C.TEST_RESULT = osp.abspath(osp.join(__C.ROOT_DIR, 'test_result'))
-__C.EPS = 1e-15
+__C.EPS = 1e-15#1e-3
 __C.ANCHOR = [4.000,4.000,2.000]  # car size # todo: car height should be carefully decided!
 __C.CUBIC_RES = [0.136,0.136,0.14] # 30x30x15  # car size [0.2858,0.2858,0.1429]:14x14x14
 __C.CUBIC_SIZE=[int(np.ceil(np.round(__C.ANCHOR[i] / __C.CUBIC_RES[i], 3))) for i in range(3)] # Be careful about python number decimal
@@ -48,7 +55,7 @@ else:
 __C.TRAIN = edict()
 
 __C.TRAIN.SNAPSHOT_ITERS = 8000
-__C.TRAIN.LEARNING_RATE = 5e-5
+__C.TRAIN.LEARNING_RATE = 1e-5
 __C.TRAIN.BATCH_SIZE = 1  # only one image
 __C.TRAIN.WEIGHT_DECAY = 0.0005 # for l2 regularizer in network.py btw,useless
 __C.TRAIN.MOVING_AVERAGE_DECAY = 0.9999

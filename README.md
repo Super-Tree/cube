@@ -1,4 +1,4 @@
-creating newwork structure for lidar pointcloud detection
+creating network structure for lidar pointcloud detection
 
 ![test1](https://github.com/Super-Tree/cube/raw/master/experiment/demo1.png)
 

@@ -1,22 +1,49 @@
 import os
-
-import vispy.app
-v = vispy.app.Canvas()
+import socket
+if socket.gethostname() == "hexindong":
+    import vispy.app
+    v = vispy.app.Canvas()
+    from vispy.scene import visuals
+    import vispy.io as vispy_file
 
 import cv2
 from tools.utils import scales_to_255
 import tensorflow as tf
 import numpy as np
 from network.config import cfg
-from vispy.scene import visuals
-import vispy.io as vispy_file
+
 from os.path import join as path_add
 
+if socket.gethostname()=="hexindong":
+    import vispy.app
+    v = vispy.app.Canvas()
+    vispy.set_log_level('CRITICAL', match='-.-')
 
-vispy.set_log_level('CRITICAL', match='-.-')
 folder = path_add(cfg.TEST_RESULT, cfg.RANDOM_STR)
 os.makedirs(folder)
 #  common functions  ===========================
+def BoxAry_Theta(gt_box3d=None,pre_box3d=None,pre_theta_value=None,pre_cube_cls=None):
+    # gt_box3d: (x1,y1,z1),(x2,y2,z2),dt_cls,yaw
+    # pre_box3d: (x1,y1,z1),(x2,y2,z2),score,rpn_cls_label
+    # cubic_theta_value:pre_box3d's yaw value
+    boxes=dict({})
+    if gt_box3d is None:
+        gt_box3d=np.zeros([1,8],dtype=np.float32)
+    if pre_box3d is None:
+        pre_box3d=np.zeros([cfg.TRAIN.RPN_POST_NMS_TOP_N,8],dtype=np.float32)
+    if pre_theta_value is None:
+        pre_theta_value=np.ones([cfg.TRAIN.RPN_POST_NMS_TOP_N,1],dtype=np.float32)*(-1.57)
+    if pre_cube_cls is None:
+        pre_cube_cls = np.zeros([cfg.TRAIN.RPN_POST_NMS_TOP_N, 1], dtype=np.float32)
+
+    boxes["center"]= np.vstack((gt_box3d[:,0:3],pre_box3d[:,0:3]))
+    boxes["size"]  = np.vstack((gt_box3d[:,3:6], pre_box3d[:,3:6]))
+    boxes["score"]  = np.vstack((gt_box3d[:, 6:7], pre_box3d[:, 6:7]))
+    boxes["cls_rpn"]  = np.vstack((gt_box3d[:, 6:7]*4, pre_box3d[:, 7:8]))#two cls flag  to save more information
+    boxes["cls_cube"]  = np.vstack((gt_box3d[:, 6:7]*4, np.reshape(pre_cube_cls,[-1,1])))#todo add cubic cls
+    boxes["yaw"]   = np.vstack((gt_box3d[:, 7:8], np.reshape(pre_theta_value,[-1,1])))#pre_box3d[:, 8:9]
+
+    return boxes
 def box3d_2conner(box,rot):
     #box : x,y,z,l,w,h,rot
     vertices = np.zeros([8,3],dtype=np.float32)
@@ -46,6 +73,32 @@ def boxary2dic(gt_box3d):
     boxes["yaw"]   = gt_box3d[:,7:8]
 
     return boxes
+def lidar_3d_to_corners(pts_3D):
+    """
+    convert pts_3D_lidar (x, y, z, l, w, h) to
+    8 corners (x0, ... x7, y0, ...y7, z0, ... z7)
+    """
+
+    l = pts_3D[:, 3]
+    w = pts_3D[:, 4]
+    h = pts_3D[:, 5]
+
+    l = l.reshape(-1, 1)
+    w = w.reshape(-1, 1)
+    h = h.reshape(-1, 1)
+
+    # clockwise, zero at bottom left
+    x_corners = np.hstack((l / 2., l / 2., -l / 2., -l / 2., l / 2., l / 2., -l / 2., -l / 2.))
+    y_corners = np.hstack((w / 2., -w / 2., -w / 2., w / 2., w / 2., -w / 2., -w / 2., w / 2.))
+    z_corners = np.hstack((-h / 2., -h / 2., -h / 2., -h / 2., h / 2., h / 2., h / 2., h / 2.))
+
+    corners = np.hstack((x_corners, y_corners, z_corners))
+
+    corners[:, 0:8] = corners[:, 0:8] + pts_3D[:, 0].reshape((-1, 1)).repeat(8, axis=1)
+    corners[:, 8:16] = corners[:, 8:16] + pts_3D[:, 1].reshape((-1, 1)).repeat(8, axis=1)
+    corners[:, 16:24] = corners[:, 16:24] + pts_3D[:, 2].reshape((-1, 1)).repeat(8, axis=1)
+
+    return corners
 
 #  using vispy ============================
 class pcd_vispy_client(object):# TODO: qt-client TO BE RE-WRITE
@@ -85,10 +138,10 @@ class pcd_vispy_client(object):# TODO: qt-client TO BE RE-WRITE
         self.vb_img = self.grid.add_view(row=1, col=0)
 
         self.vb.camera = 'turntable'
-        self.vb.camera.elevation = 21.0
+        self.vb.camera.elevation = 90#21.0
         self.vb.camera.center = (6.5, -0.5, 9.0)
-        self.vb.camera.azimuth = -75.5
-        self.vb.camera.scale_factor = 32.7
+        self.vb.camera.azimuth = -90#-75.5
+        self.vb.camera.scale_factor = 63#32.7
 
         self.vb_img.camera = 'turntable'
         self.vb_img.camera.elevation = -90.0
@@ -192,10 +245,11 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
         scatter.set_data(pos, edge_width=0, face_color=(1, 1, 1, 1), size=point_size, scaling=True)
 
     vb.camera = 'turntable'
-    vb.camera.elevation = 21.0
+    vb.camera.elevation = 90  # 21.0
     vb.camera.center = (6.5, -0.5, 9.0)
-    vb.camera.azimuth = -75.5
-    vb.camera.scale_factor = 32.7
+    vb.camera.azimuth = -90  # -75.5
+    vb.camera.scale_factor = 63  # 32.7
+
     if scans is not None:
         vb.add(scatter)
 
@@ -264,6 +318,7 @@ def pcd_vispy(scans=None,img=None, boxes=None, name=None, index=0,vis_size=(800,
         vispy.app.run()
 
     return canvas
+
 def box_rot_trans(vertices, rotation,translation):
     # points: numpy array;translation: moving scalar which should be small
     R = np.array([[np.cos(rotation), -np.sin(rotation), 0.],
@@ -284,9 +339,8 @@ def vispy_init():
     # vispy.app.use_app()
     v = vispy.app.Canvas()
 
-
 def line_box(box_center,box_size,rot,color=(0, 1, 0, 0.1)):
-    box = np.array([box_center[0],box_center[1],box_center[2],box_size[1],box_size[0],box_size[2]],dtype=np.float32)
+    box = np.array([box_center[0],box_center[1],box_center[2],2.0,box_size[0],box_size[2]],dtype=np.float32)#box_size[1] #TODO:just for view
     p0, p1, p2, p3, p4, p5, p6, p7=box3d_2conner(box,rot)
     pos = np.vstack((p0,p1,p2,p3,p0,p4,p5,p6,p7,p4,p5,p1,p2,p6,p7,p3))
     lines = visuals.Line(pos=pos, connect='strip', width=1, color=color, antialias=True,method='gl')
@@ -352,6 +406,7 @@ def Boxes_labels_Gen(box_es,ns,frame_id='rslidar'):
 
     label_boxes = MarkerArray()
     label_boxes.markers=[]
+    # TODO: to fix boxes type from array2dict
     for idx,_box in enumerate(box_es):
         radio = max(_box[6] - 0.5, 0.005) * 2.0
         color = (0, radio, 0, 1)  # Green
@@ -421,33 +476,6 @@ def Image_Gen(iamge,frameID='rslidar'):
     return image_ros
 
 #  using mayavi ===========================
-
-def lidar_3d_to_corners(pts_3D):
-    """
-    convert pts_3D_lidar (x, y, z, l, w, h) to
-    8 corners (x0, ... x7, y0, ...y7, z0, ... z7)
-    """
-
-    l = pts_3D[:, 3]
-    w = pts_3D[:, 4]
-    h = pts_3D[:, 5]
-
-    l = l.reshape(-1, 1)
-    w = w.reshape(-1, 1)
-    h = h.reshape(-1, 1)
-
-    # clockwise, zero at bottom left
-    x_corners = np.hstack((l / 2., l / 2., -l / 2., -l / 2., l / 2., l / 2., -l / 2., -l / 2.))
-    y_corners = np.hstack((w / 2., -w / 2., -w / 2., w / 2., w / 2., -w / 2., -w / 2., w / 2.))
-    z_corners = np.hstack((-h / 2., -h / 2., -h / 2., -h / 2., h / 2., h / 2., h / 2., h / 2.))
-
-    corners = np.hstack((x_corners, y_corners, z_corners))
-
-    corners[:, 0:8] = corners[:, 0:8] + pts_3D[:, 0].reshape((-1, 1)).repeat(8, axis=1)
-    corners[:, 8:16] = corners[:, 8:16] + pts_3D[:, 1].reshape((-1, 1)).repeat(8, axis=1)
-    corners[:, 16:24] = corners[:, 16:24] + pts_3D[:, 2].reshape((-1, 1)).repeat(8, axis=1)
-
-    return corners
 
 def draw_3dPoints_box(lidar=None, Boxes3D=None, is_grid=True, fig=None, draw_axis=True):
     import mayavi.mlab as mlab  # 3d point

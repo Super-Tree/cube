@@ -57,5 +57,10 @@ class test_net(Network):
 
         (self.feed('lidar3d_data','rpn_rois')
          .cubic_grid(method=args.method,name='cubic_grid')
-         .cubic_cnn(name='cubic_cnn')
+         .RNet_theta(name='RNet_theta')
          )
+
+        # (self.feed('lidar3d_data','rpn_rois')
+        #  .cubic_grid(method=args.method,name='cubic_grid')
+        #  .cubic_cnn(name='cubic_cnn')
+        #  )

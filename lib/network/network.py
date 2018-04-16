@@ -374,8 +374,8 @@ class Network(object):
         with tf.variable_scope(name,reuse=tf.AUTO_REUSE) as scope:
             rpn_rois_bv, rpn_rois_3d = tf.py_func(generate_rpn,[input[0], input[1], input[2], cfg_key, _feat_stride],
                                                   [tf.float32, tf.float32])
-            rpn_rois_bv = tf.reshape(rpn_rois_bv, [-1, 6], name='rpn_rois_bv') # [score,x,y,l,w,rpn_label]
-            rpn_rois_3d = tf.reshape(rpn_rois_3d, [-1, 8], name='rpn_rois_3d') # [score,x,y,z,l,w,h,rpn_label]
+            rpn_rois_bv = tf.reshape(rpn_rois_bv, [-1, 6], name='rpn_rois_bv') # [x,y,l,w,score,rpn_label=0]
+            rpn_rois_3d = tf.reshape(rpn_rois_3d, [-1, 8], name='rpn_rois_3d') # [x,y,z,l,w,h,score,rpn_label=0]
         return rpn_rois_bv, rpn_rois_3d
 
     @layer
@@ -392,12 +392,19 @@ class Network(object):
             #T:[B,30,30,15,2] ->[B,30,30]
             bi_bv = tf.reduce_max(input[:,:,:,:,0],axis=3,keep_dims=True)
             layer = tf.reshape(bi_bv,[cfg.TRAIN.RPN_POST_NMS_TOP_N,30,30,1])
-            layer = tf.layers.conv2d(layer,filters=32,kernel_size=3,strides=[1, 1],activation=tf.nn.relu,name=None)
+            layer = tf.layers.conv2d(layer,filters=32,kernel_size=5,strides=[1, 1],padding="same",activation=tf.nn.relu,name=None,use_bias=False)
+            # layer = tf.layers.batch_normalization(layer)
             layer = tf.layers.max_pooling2d(layer,[2,2],[2,2])
-            layer = tf.layers.conv2d(layer,filters=64,kernel_size=3,strides=[2, 2],activation=tf.nn.relu,name=None)
-            layer = tf.layers.average_pooling2d(layer,[6,6],[6,6])
+            layer = tf.layers.conv2d(layer,filters=64,kernel_size=5,strides=[1, 1],padding="same",activation=tf.nn.relu,name=None,use_bias=True)
+            # layer = tf.layers.batch_normalization(layer)
+            layer = tf.layers.max_pooling2d(layer,[2,2],[2,2])
+            # layer = tf.layers.average_pooling2d(layer,[6,6],[6,6])
             layer = tf.reshape(layer,[cfg.TRAIN.RPN_POST_NMS_TOP_N,-1])
-            layer = tf.layers.dense(layer,1,use_bias=True)
+            # layer = tf.layers.batch_normalization(layer)
+            layer = tf.layers.dense(layer,1024,use_bias=True)
+            # layer = tf.nn.dropout(layer,0.6)#TODO: test remove
+            layer = tf.nn.relu(layer)
+            layer = tf.layers.dense(layer, 1, use_bias=True)
             layer = tf.reshape(layer,[-1])
             # layer = tf.layers.conv2d(layer,filters=32,kernel_size=3,strides=[1, 1],activation=tf.nn.relu,name=None)
 

@@ -6,7 +6,6 @@ from tools.data_visualize import pcd_vispy,pcd_show_now,boxary2dic
 from network.config import cfg
 
 DEBUG = False
-
 #TODO: cubic feature define 2,4,or else?
 cubic_size = [cfg.CUBIC_SIZE[0], cfg.CUBIC_SIZE[1], cfg.CUBIC_SIZE[2], 2]
 
@@ -23,10 +22,10 @@ def cubic_rpn_grid_pyfc(lidarPoints, rpnBoxes,method):
         points_mv_min = np.subtract(rpn_points,min_vertex)  # using fot coordinate
         points_mv_ctr = np.subtract(rpn_points,ctr_vertex)  # using as feature
         if method =='train' and cfg.TRAIN.USE_AUGMENT_IN_CUBIC_GEN:
-            angel = random.rand()*0.01 #*np.pi*2 #[0~360]
+            angel = (random.rand()-0.500) * np.pi * 0.9# *np.pi*2 #[0~360]#TODO: check ;to change 0.01->big scalar
             # angel = 0.7854 #counter clockwise rotation
-            scalar = 1.1 - random.rand()*0.2
-            translation = np.random.rand(3, 1) * 0.2
+            scalar = 1.05 - random.rand()*0.1
+            translation = np.random.rand(3, 1) * 0.01
             points_mv_ctr_rot_nobound = rot_sca_pc(points_mv_ctr,angel,scalar,translation)
             points_mv_ctr_rot,min_p,ctr_p = bounding_filter(points_mv_ctr_rot_nobound, [0,0,0])
 

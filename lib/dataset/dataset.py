@@ -29,7 +29,7 @@ class dataset_KITTI_train(object):  # read txt files one by one
         self._type = arguments.imdb_type  # kitti or sti
         self._classes = ('__background__', 'Car')  # , 'Pedestrian', 'Cyclist')
         self.num_classes = len(self._classes)
-        self._data_path = osp.join(osp.dirname(__file__), '../../data', 'training')  # data path
+        self._data_path = osp.join(cfg.DATA_DIR, 'training')  # data path
         self._class_to_ind = dict(zip(self._classes, xrange(self.num_classes)))
         self.inputIndex = self.get_fileIndex(self._data_path)
         self.input_num = len(self.inputIndex['train_index'])
@@ -136,8 +136,12 @@ class dataset_KITTI_train(object):  # read txt files one by one
         return filtered_roidb
 
     def load_roidb(self):
-        cache_file = os.path.join(self._data_path, 'train_gt_roidb_LOCAL.pkl')
-        val_cache_file = os.path.join(self._data_path, 'valid_gt_roidb_LOCAL.pkl')
+        if socket.gethostname()=='hexindong':
+            cache_file = os.path.join(self._data_path, 'train_gt_roidb_LOCAL.pkl')
+            val_cache_file = os.path.join(self._data_path, 'valid_gt_roidb_LOCAL.pkl')
+        else:
+            cache_file = os.path.join(self._data_path, 'train_gt_roidb_SERVER.pkl')
+            val_cache_file = os.path.join(self._data_path, 'valid_gt_roidb_SERVER.pkl')
         if os.path.exists(cache_file) & os.path.exists(val_cache_file):
             print 'Dataset will be loaded from existing cache file'
             with open(cache_file, 'rb') as fid:
@@ -442,14 +446,17 @@ class dataset_KITTI_train(object):  # read txt files one by one
         gt_boxes_3d[:, 0:6] = dataset[idx]['boxes_3D'][gt_inds, :]
         gt_boxes_3d[:, 6] = dataset[idx]['gt_classes'][gt_inds]
 
-        gt_boxes_3d[:, 7]= dataset[idx]['ry'][gt_inds]
-        # out_1 = np.where(thetas)
+        thetas = dataset[idx]['ry'][gt_inds]
+        out_1 = np.where(thetas < -np.pi/2)[0]
+        thetas[out_1]+=np.pi
+        out_2 = np.where(thetas > np.pi/2)[0]
+        thetas[out_2]-=np.pi
+        gt_boxes_3d[:, 7]= thetas#TODO:Check
         # if thetas<(-1.5708)
         #     thetas+=3.1415926
         # elif thetas>1.5708
         #     thetas = 3.1415926-thetas
         # gt_boxes_3d[:, 7]=thetas
-
 
         # gt boxes corners: (x0, ... x7, y0, y1, ... y7, z0, ... z7, cls)
         gt_boxes_corners = np.empty((len(gt_inds), 25), dtype=np.float32)
@@ -482,9 +489,9 @@ class dataset_KITTI_test(object):  # read txt files one by one
         self._classes = ('__background__', 'Car')  # , 'Pedestrian', 'Cyclist')
         self.num_classes = len(self._classes)
         if arguments.use_demo:
-            self._data_path = osp.join(osp.dirname(__file__), '../../data', 'drive_0064')  # data path
+            self._data_path = osp.join(cfg.DATA_DIR, 'drive_0064')  # data path
         else:
-            self._data_path = osp.join(osp.dirname(__file__), '../../data', 'testing')  # data path
+            self._data_path = osp.join(cfg.DATA_DIR, 'testing')  # data path
 
         self._class_to_ind = dict(zip(self._classes, xrange(self.num_classes)))
         self.inputIndex = self.get_fileIndex(self._data_path)

@@ -53,8 +53,7 @@ def parse_args():
 
 
 def checkArgs(Args):
-    print('Called with args:')
-    print(args)
+
     # print('Using config:')
     # pprint.pprint(cfg)
     print "Checking the args ..."
@@ -83,7 +82,8 @@ def checkArgs(Args):
                 print "Finetune the weight: \n   {}".format(Args.weights)
     else:
             print "The network will RETRAIN from empty ! ! "
-
+    print('Called with args:')
+    print(args)
 
 def get_network(arguments):
     """Get a network by name."""
@@ -103,6 +103,8 @@ def get_network(arguments):
 
 
 if __name__ == '__main__':
+    import numpy as np
+    # np.random.seed(5)
     args = parse_args()
     checkArgs(args)
 
